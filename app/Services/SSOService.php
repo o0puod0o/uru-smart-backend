@@ -12,7 +12,7 @@ class SSOService
     public function __construct()
     {
         $this->http = new Client([
-            'base_uri' => config('sso.base_url'),
+            'base_uri' => trim(config('sso.base_url')),
             'timeout'  => 10,
         ]);
     }
@@ -23,8 +23,8 @@ class SSOService
         $response = $this->http->post('/oauth/token', [
             'form_params' => [
                 'grant_type'    => 'password',
-                'client_id'     => config('sso.client_id'),
-                'client_secret' => config('sso.client_secret'),
+                'client_id'     => trim((string) config('sso.client_id')),
+                'client_secret' => trim((string) config('sso.client_secret')),
                 'username'      => $email,
                 'password'      => $password,
                 'scope'         => 'view-profile view-employee',

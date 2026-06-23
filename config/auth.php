@@ -42,7 +42,7 @@ return [
     ],
     'sanctum' => [
         'driver'   => 'sanctum',
-        'provider' => 'teachers',
+        'provider' => 'users',
     ],
 ],
 
@@ -64,13 +64,9 @@ return [
     */
 
     'providers' => [
-        'users' => [
-            'driver' => 'eloquent',
-            'model'  => App\Models\User::class,
-    ],
-        'teachers' => [
-            'driver' => 'eloquent',
-            'model'  => App\Models\Teacher::class,
+    'users' => [
+        'driver' => 'eloquent',
+        'model'  => App\Models\User::class,  // เปลี่ยนจาก Teacher
     ],
 ],
     /*

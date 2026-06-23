@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Teacher;
+use App\Models\User;
 use App\Services\SSOService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -29,14 +29,14 @@ class AuthController extends Controller
             $ssoUser = $this->sso->getUserInfo($tokenData['access_token']);
 
             // 3. insert หรือ update ข้อมูลอาจารย์
-            $teacher = $this->upsertTeacher($ssoUser);
+            $teacher = $this->upsertUser($ssoUser);
 
             // 4. ออก Sanctum token ให้ Mobile App
             $sanctumToken = $teacher->createToken('mobile-app')->plainTextToken;
 
             return response()->json([
                 'token'   => $sanctumToken,
-                'teacher' => [
+                'user' => [
                     'id'                 => $teacher->id,
                     'code'               => $teacher->code,
                     'full_name_th'       => $teacher->full_name_th,
@@ -44,7 +44,7 @@ class AuthController extends Controller
                     'email'              => $teacher->email,
                     'faculty_name_th'    => $teacher->faculty_name_th,
                     'department_name_th' => $teacher->department_name_th,
-                    'picture'            => $teacher->picture,
+                    'picture'            => $teacher->display_picture,
                 ],
             ]);
 
@@ -66,9 +66,9 @@ class AuthController extends Controller
         ]);
     }
 
-    private function upsertTeacher(array $ssoUser): Teacher
+    private function upsertUser(array $ssoUser): User
     {
-        return Teacher::updateOrCreate(
+        return User::updateOrCreate(
             ['sso_id' => $ssoUser['id']],
             [
                 'code'               => $ssoUser['code'],
@@ -89,7 +89,7 @@ class AuthController extends Controller
                 'birth_date'         => $ssoUser['birth_date'],
                 'nationality'        => $ssoUser['nationality'],
                 'email'              => $ssoUser['email'],
-                'picture'            => $ssoUser['picture'],
+                'sso_picture'        => $ssoUser['picture'] ?? null,
                 'faculty_id'         => $ssoUser['faculty_id'],
                 'faculty_name_th'    => $ssoUser['faculty_name_th'],
                 'faculty_name_en'    => $ssoUser['faculty_name_en'],
