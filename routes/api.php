@@ -28,6 +28,7 @@ Route::get('ping', function () {
     return response()->json(['pong' => true]);
 });
 
+
 // ===== PUBLIC ROUTES (ไม่ต้อง auth) =====
 Route::get('profile/{id}', [ProfileController::class, 'show']);
 Route::get('profile/{id}/pdf', [ProfileController::class, 'pdf']);
@@ -36,6 +37,7 @@ Route::get('profile/{id}/pdf', [ProfileController::class, 'pdf']);
 Route::prefix('auth')->group(function () {
     // POST /api/auth/login - Rate limited 5 requests/minute
     Route::post('login', [AuthController::class, 'login'])->middleware('throttle:5,1');
+    Route::post('sso-token', [AuthController::class, 'loginWithSsoToken'])->middleware('throttle:10,1');
     // POST /api/auth/logout - ต้อง auth:sanctum
     Route::post('logout', [AuthController::class, 'logout'])
         ->middleware('auth:sanctum');
