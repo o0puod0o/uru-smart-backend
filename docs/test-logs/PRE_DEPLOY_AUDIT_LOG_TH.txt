@@ -1,0 +1,286 @@
+Pre-deploy Audit Log
+====================
+
+วันที่: 14 สิงหาคม 2026
+
+
+1) Rule ที่ตรวจตาม requirement
+------------------------------
+
+หลัง login ทุก module ใช้ token เดียวกัน
+
+Read-only:
+
+- SSO user
+- expert2.users
+- lrdsystem2.users
+- lrdsystem2.researchers
+
+CRUD ได้:
+
+- expert2 education / interest / research / journal / workex
+- lrdsystem2 educations / papers / projects / researchs / proposals
+
+LRD permission:
+
+- อ่านงานคนอื่นได้
+- แก้ไข/ลบได้เฉพาะงานของตัวเอง
+- frontend ไม่ต้องส่ง id_card หรือ researcher_id เอง
+- backend map จาก token
+
+
+2) ช่องโหว่/ความเสี่ยงที่เจอ
+-----------------------------
+
+2.1 Mock SSO routes เปิด public
+
+ก่อนแก้:
+
+- /api/mock-sso/oauth/token
+- /api/mock-sso/api/userinfo
+- /api/userinfo
+
+เสี่ยงถ้า deploy ไป production เพราะเป็น endpoint สำหรับ local test เท่านั้น
+
+แก้แล้ว:
+
+- เพิ่ม config sso.mock_routes
+- routes mock-sso จะเปิดเฉพาะเมื่อ SSO_MOCK_ROUTES=true
+- ลบ /api/userinfo mock route ที่ไม่จำเป็นออก
+- .env.example ตั้ง SSO_MOCK_ROUTES=false
+
+ผลทดสอบ:
+
+SSO_MOCK_ROUTES=false php artisan route:list --path=api/mock-sso
+
+Result:
+
+No routes matching the given criteria
+
+
+2.2 SSO mock default เปิดง่ายเกินไป
+
+ก่อนแก้:
+
+config/sso.php default SSO_MOCK = true
+
+แก้แล้ว:
+
+config/sso.php default SSO_MOCK = false
+
+เพื่อให้ production ไม่เผลอใช้ mock ถ้าไม่ได้ตั้งค่า env
+
+
+2.3 Profile update แก้ field master ได้
+
+ก่อนแก้:
+
+PUT /api/me ยังรับ field เช่น:
+
+- prefix_id
+- birthdate
+- main_unit
+- sub_unit
+- sub_unit_id
+
+field เหล่านี้ควรเป็น SSO/master-owned
+
+แก้แล้ว:
+
+PUT /api/me อนุญาตเฉพาะ mobile-owned fields เช่น:
+
+- phone_work
+- phone_mobile
+- line_id
+- facebook
+- website
+- bio
+- profile_picture
+- address
+- position
+- branch
+
+ไม่ update prefix/birthdate/unit จาก mobile app แล้ว
+
+ผลทดสอบ:
+
+ส่ง prefix_id, birthdate, main_unit เข้า PUT /api/me
+
+Result:
+
+{
+    "prefix_before": "นาย",
+    "prefix_after": "นาย",
+    "birthdate_before": "1980-04-10",
+    "birthdate_after": "1980-04-10",
+    "main_unit_before": 122,
+    "main_unit_after": 122,
+    "phone_work": "055-CODEX-AUDIT",
+    "bio": "Codex audit bio"
+}
+
+สรุป:
+
+- mobile-owned fields update ได้
+- master-owned fields ไม่ถูกทับ
+
+
+2.4 Public profile 500 หลังย้าย expert2 relations
+
+ก่อนแก้:
+
+/api/profile/4 เกิด 500 เพราะ relation:
+
+researches.researchType
+researches.researchPMUType
+researches.researchLevel
+
+พยายามไปหา table reference ผิด connection/table name
+
+แก้แล้ว:
+
+- public profile/PDF ไม่ eager load nested research reference ที่ผิด connection
+- แสดง research IDs ไปก่อน
+- ป้องกัน 500 ก่อน deploy
+
+ผลทดสอบ:
+
+GET /api/profile/4
+
+Result:
+
+{
+    "status": 200,
+    "educations_count": 2,
+    "researches_count": 12,
+    "first_education_course": "วศ.ม.วิศวกรรมคอมพิวเตอร์"
+}
+
+
+2.5 LRD researcher_id filter อ่านคนอื่นไม่ได้ถ้าไม่ใช้ scope=all
+
+ก่อนแก้:
+
+GET /api/lrd/papers?researcher_id=1440
+
+อาจยังติด default scope mine
+
+แก้แล้ว:
+
+ถ้าส่ง researcher_id จะอ่านของ researcher คนนั้นได้
+ถ้าไม่ส่ง researcher_id และไม่ส่ง scope จะ default เป็น mine
+
+ผลทดสอบ:
+
+GET /api/lrd/papers?researcher_id=1440
+
+Result:
+
+{
+    "status": 200,
+    "researcher_1440_total": 5,
+    "first_other_researcher_id": 1440
+}
+
+
+3) Integration Test ล่าสุด
+--------------------------
+
+{
+    "login": {
+        "status": 200,
+        "user_id": 4,
+        "token": "75|l8kujK1aSoptEng..."
+    },
+    "public_profile": {
+        "status": 200,
+        "educations_count": 2,
+        "researches_count": 12,
+        "first_education_course": "วศ.ม.วิศวกรรมคอมพิวเตอร์"
+    },
+    "profile_update_lock": {
+        "status": 200,
+        "prefix_before": "นาย",
+        "prefix_after": "นาย",
+        "birthdate_before": "1980-04-10",
+        "birthdate_after": "1980-04-10",
+        "main_unit_before": 122,
+        "main_unit_after": 122,
+        "phone_work": "055-CODEX-AUDIT",
+        "bio": "Codex audit bio"
+    },
+    "lrd_read": {
+        "status": 200,
+        "researcher_1440_total": 5,
+        "all_total": 122,
+        "first_other_researcher_id": 1440
+    },
+    "owner_update_other": 404,
+    "owner_crud": {
+        "create_status": 201,
+        "created_id": 130,
+        "created_researcher_id": 881,
+        "delete_message": "ลบสำเร็จ"
+    }
+}
+
+
+4) Confirm test record ไม่ค้าง
+------------------------------
+
+SELECT COUNT(*) FROM lrdsystem2.papers WHERE title_th LIKE 'AUDIT-LRD-PAPER%';
+
+Result:
+
+0
+
+SELECT COUNT(*) FROM lrdsystem2.papers WHERE title_th='SHOULD-NOT-UPDATE';
+
+Result:
+
+0
+
+ตรวจ master user:
+
+SELECT th_firstname, th_lastname
+FROM expert2.users
+WHERE username='3530900177802';
+
+Result:
+
+ภานุวัฒน์ ขันจา
+
+
+5) Production .env ที่ควรตั้ง
+-----------------------------
+
+APP_ENV=production
+APP_DEBUG=false
+
+SSO_MOCK=false
+SSO_MOCK_ROUTES=false
+SSO_LOCAL_DATABASE=false
+SSO_BASE_URL=<real-sso-url>
+SSO_CLIENT_ID=<real-client-id>
+SSO_CLIENT_SECRET=<real-client-secret>
+
+EXPERT_DB_DATABASE=expert2
+LRD_DB_DATABASE=lrdsystem2
+
+
+6) สรุปสถานะ
+------------
+
+PASS:
+
+- login/token ใช้งานได้
+- mock routes ถูกปิดได้ด้วย config
+- public profile ไม่ 500
+- expert2.users ยัง read-only
+- lrdsystem2.researchers ยัง read-only
+- profile update ไม่ทับ SSO/master fields
+- LRD read all/read by researcher ทำงาน
+- LRD update/delete งานคนอื่นไม่ได้
+- CRUD งานของตัวเองทำงาน
+- test records ถูกลบ ไม่ค้างใน DB
+

@@ -1,0 +1,207 @@
+INFO SERVER DEPLOY ENDPOINTS + CURL STATUS
+Deploy target: https://info.uru.ac.th/server
+Updated: 2026-08-17
+
+============================================================
+CURRENT DEPLOY STATUS
+============================================================
+
+Code uploaded: DONE
+Vendor uploaded: DONE
+.env uploaded: DONE
+Database expert2/lrdsystem2: NOT TOUCHED
+SSO mode: MOCK / FAST MOCK
+
+Current temporary mode:
+Server path /server is still running PHP 7.4.9, so Laravel 10 cannot boot.
+To unblock frontend testing, /api/* is temporarily routed to public/php74-mock-api.php.
+This is a PHP 7.4-compatible mock API shim.
+
+Current curl result:
+
+GET https://info.uru.ac.th/server/api/ping
+
+HTTP/1.1 200 OK
+X-Powered-By: PHP/7.4.9
+
+{"pong":true,"mode":"php74-temporary-mock"}
+
+Important:
+This temporary shim is for frontend/mock testing only.
+It does not use Laravel, Sanctum, or real database CRUD.
+After server admin changes IIS/PHP Handler for /server to PHP 8.2 or newer,
+remove the "Temporary PHP 7.4 Mock API" rewrite rule from public/web.config
+and remove public/php74-mock-api.php so Laravel can handle /api/* normally.
+
+
+============================================================
+BASE URL AFTER PHP FIX
+============================================================
+
+API Base URL:
+https://info.uru.ac.th/server/api
+
+Health check:
+GET https://info.uru.ac.th/server/api/ping
+
+Current expected:
+HTTP 200
+{"pong":true,"mode":"php74-temporary-mock"}
+
+
+============================================================
+MOCK LOGIN CONFIG USED IN THIS DEPLOY
+============================================================
+
+SSO_DRIVER=expert_profile
+SSO_MOCK=false
+SSO_MOCK_ROUTES=true
+SSO_FAST_MOCK=true
+SSO_LOCAL_DATABASE=false
+SSO_BASE_URL=https://info.uru.ac.th/server/api/mock-sso
+SSO_EXPERT_API_BASE_URL=https://info.uru.ac.th/server/api/mock-sso
+SSO_EXPERT_API_TOKEN=mock-expert-api-token
+
+หมายเหตุ:
+- Frontend ไม่ต้องเรียก /mock-sso เอง
+- Frontend ใช้ /auth/login เหมือนเดิม
+- Backend จะจำลอง SSO/expert callback เองจาก mock account
+
+
+============================================================
+APP MAIN ENDPOINTS
+============================================================
+
+POST /auth/login
+Full URL:
+POST https://info.uru.ac.th/server/api/auth/login
+
+Body:
+{
+  "email": "mockuser01@gmail.com",
+  "password": "password"
+}
+
+Response expected after PHP fix:
+{
+  "token": "...",
+  "user": {
+    "id": 7,
+    "code": "...",
+    "full_name_th": "...",
+    "full_name_en": "Mock User01",
+    "email": "mockuser01@gmail.com"
+  }
+}
+
+POST /auth/logout
+GET /me
+GET /me/external-profile
+PUT /me
+POST /me/photo
+DELETE /me/photo
+
+GET /announcements
+GET /profile-search
+
+Profile search expertise filters:
+GET /profile-search?expertise_group_id=6
+GET /profile-search?group_id=6
+GET /profile-search?expertise=วิศวกรรมศาสตร์
+
+Reference:
+GET /ref/profile-options
+GET /ref/search-options
+GET /ref/search-fields
+GET /ref/expertise-options
+GET /ref/interest-options
+GET /ref/research-types
+GET /ref/research-levels
+GET /ref/research-pmu-types
+GET /ref/journal-types
+GET /ref/degrees
+GET /ref/departments
+GET /ref/expertise-groups
+
+
+============================================================
+LRD / RESEARCH MODULE ENDPOINTS
+============================================================
+
+Reference:
+GET /lrd/facultys
+GET /lrd/branchs
+GET /lrd/paperindexs
+
+CRUD:
+GET    /lrd/educations
+POST   /lrd/educations
+GET    /lrd/educations/{id}
+PUT    /lrd/educations/{id}
+DELETE /lrd/educations/{id}
+
+GET    /lrd/papers
+POST   /lrd/papers
+GET    /lrd/papers/{id}
+PUT    /lrd/papers/{id}
+DELETE /lrd/papers/{id}
+
+GET    /lrd/projects
+POST   /lrd/projects
+GET    /lrd/projects/{id}
+PUT    /lrd/projects/{id}
+DELETE /lrd/projects/{id}
+
+GET    /lrd/researchs
+POST   /lrd/researchs
+GET    /lrd/researchs/{id}
+PUT    /lrd/researchs/{id}
+DELETE /lrd/researchs/{id}
+
+GET    /lrd/proposals
+POST   /lrd/proposals
+GET    /lrd/proposals/{id}
+PUT    /lrd/proposals/{id}
+DELETE /lrd/proposals/{id}
+
+
+============================================================
+MOCK ACCOUNTS
+============================================================
+
+Password ทุก account:
+password
+
+phanuwat@live.uru.ac.th / password
+somsak@gmail.com / password
+mockuser01@gmail.com / password
+mockuser02@gmail.com / password
+mockuser03@gmail.com / password
+mockuser04@gmail.com / password
+mockuser05@gmail.com / password
+mockuser06@gmail.com / password
+mockuser07@gmail.com / password
+mockuser08@gmail.com / password
+mockuser09@gmail.com / password
+mockuser10@gmail.com / password
+
+
+============================================================
+CURL COMMANDS TO RE-TEST AFTER PHP FIX
+============================================================
+
+Health:
+curl -k -i https://info.uru.ac.th/server/api/ping
+
+Login:
+curl -k -i -X POST ^
+  -H "Accept: application/json" ^
+  --data-urlencode "email=mockuser01@gmail.com" ^
+  --data-urlencode "password=password" ^
+  https://info.uru.ac.th/server/api/auth/login
+
+Me:
+curl -k -i ^
+  -H "Accept: application/json" ^
+  -H "Authorization: Bearer <token>" ^
+  https://info.uru.ac.th/server/api/me

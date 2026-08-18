@@ -6,10 +6,12 @@ use Illuminate\Database\Eloquent\Model;
 
 class HasResearch extends Model
 {
-    protected $table = 'has_researches';
+    protected $connection = 'expert';
+
+    protected $table = 'has_research';
 
     protected $fillable = [
-        'user_id', 'name', 'year',
+        'id_card', 'name', 'year',
         'research_type_id', 'research_PMU_type_id',
         'research_level_id', 'dateAdd',
     ];
@@ -19,11 +21,6 @@ class HasResearch extends Model
     protected $casts = [
         'dateAdd' => 'datetime',
     ];
-
-    public function user()
-    {
-        return $this->belongsTo(User::class, 'user_id', 'id');
-    }
 
     public function researchType()
     {

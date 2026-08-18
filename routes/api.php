@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ChatController;
+use App\Http\Controllers\MockSsoController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Api\ResearchController;
 use App\Http\Controllers\Api\JournalController;
@@ -21,12 +22,34 @@ use App\Http\Controllers\Api\AnnouncementController;
 use App\Http\Controllers\Api\ReferenceController;
 use App\Http\Controllers\Api\ExpertiseController;
 use App\Http\Controllers\Api\ProfileSearchController;
+use App\Http\Controllers\NotificationSettingController;
+use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\PushTokenController;
+use App\Http\Controllers\Api\ProposalController;
+use App\Http\Controllers\Api\ReportController;
+use App\Http\Controllers\Api\EntityFileController;
+use App\Http\Controllers\Api\AdminUserApiController;
+use App\Http\Controllers\Api\ExternalProfileController;
+use App\Http\Controllers\Api\LrdProjectController;
+use App\Http\Controllers\Api\LrdProposalController;
+use App\Http\Controllers\Api\LrdEducationController;
+use App\Http\Controllers\Api\LrdPaperController;
+use App\Http\Controllers\Api\LrdReferenceController;
+use App\Http\Controllers\Api\LrdResearchController;
 
 
 // Health check
 Route::get('ping', function () {
     return response()->json(['pong' => true]);
 });
+
+if (config('sso.mock_routes')) {
+    Route::prefix('mock-sso')->group(function () {
+        Route::post('oauth/token', [MockSsoController::class, 'token']);
+        Route::get('api/userinfo', [MockSsoController::class, 'userinfo']);
+        Route::get('experts/{identifier}', [MockSsoController::class, 'expert']);
+    });
+}
 
 
 // ===== PUBLIC ROUTES (ไม่ต้อง auth) =====
@@ -48,10 +71,18 @@ Route::prefix('auth')->group(function () {
 Route::middleware('auth:sanctum')->group(function () {
     // Profile management
     Route::get('me', [ProfileController::class, 'me']);
+    Route::get('me/external-profile', [ExternalProfileController::class, 'me']);
     Route::put('me', [ProfileController::class, 'update']);
     Route::post('me/photo', [ProfileController::class, 'uploadPhoto']);
     Route::delete('me/photo', [ProfileController::class, 'deletePhoto']);
-    Route::post('push-token', [ProfileController::class, 'pushToken']);
+    Route::post('push-token', [PushTokenController::class, 'store']);
+    Route::delete('push-token', [PushTokenController::class, 'destroy']);
+    Route::put('notification-settings', [NotificationSettingController::class, 'update']);
+    Route::get('notifications', [NotificationController::class, 'index']);
+    Route::get('notifications/unread-count', [NotificationController::class, 'unreadCount']);
+    Route::patch('notifications/{id}/read', [NotificationController::class, 'markAsRead']);
+    Route::post('notifications/read-all', [NotificationController::class, 'markAllAsRead']);
+    Route::delete('notifications/{id}', [NotificationController::class, 'destroy']);
 
     // Chat / Chatbot
     Route::post('chat', [ChatController::class, 'send']);
@@ -100,4 +131,28 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('educations', EducationController::class);
     Route::apiResource('interests', InterestController::class);
     Route::apiResource('expertises', ExpertiseController::class);
+    Route::apiResource('proposals', ProposalController::class);
+    Route::apiResource('reports', ReportController::class);
+    Route::prefix('lrd')->name('lrd.')->group(function () {
+        Route::get('facultys', [LrdReferenceController::class, 'facultys']);
+        Route::get('branchs', [LrdReferenceController::class, 'branchs']);
+        Route::get('paperindexs', [LrdReferenceController::class, 'paperindexs']);
+        Route::apiResource('educations', LrdEducationController::class);
+        Route::apiResource('papers', LrdPaperController::class);
+        Route::apiResource('projects', LrdProjectController::class);
+        Route::apiResource('researchs', LrdResearchController::class);
+        Route::apiResource('proposals', LrdProposalController::class);
+    });
+    Route::get('files', [EntityFileController::class, 'index']);
+    Route::post('files', [EntityFileController::class, 'store']);
+    Route::get('files/{file}/download', [EntityFileController::class, 'download']);
+    Route::delete('files/{file}', [EntityFileController::class, 'destroy']);
+
+    Route::middleware('admin')->prefix('admin')->group(function () {
+        Route::get('users', [AdminUserApiController::class, 'index']);
+        Route::get('users/{user}', [AdminUserApiController::class, 'show']);
+        Route::put('users/{user}', [AdminUserApiController::class, 'update']);
+        Route::patch('users/{user}/role', [AdminUserApiController::class, 'role']);
+        Route::delete('users/{user}', [AdminUserApiController::class, 'destroy']);
+    });
 });

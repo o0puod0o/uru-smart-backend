@@ -1,0 +1,293 @@
+URU SMART - SERVER ENDPOINTS
+============================
+
+API Base URL:
+https://aritapp.uru.ac.th/urusmart/api
+
+Web Base URL:
+https://aritapp.uru.ac.th/urusmart
+
+Protected API Header:
+Authorization: Bearer <token>
+Accept: application/json
+
+
+PUBLIC API
+----------
+
+GET  /ping
+GET  /profile/{id}
+GET  /profile/{id}/pdf
+
+
+AUTHENTICATION
+--------------
+
+POST /auth/login
+POST /auth/sso-token
+POST /auth/logout                      [Protected]
+
+Login Body:
+{
+  "email": "user@example.com",
+  "password": "password"
+}
+
+SSO Token Body:
+{
+  "access_token": "<sso-access-token>"
+}
+
+
+PROFILE
+-------
+
+GET    /me                             [Protected]
+PUT    /me                             [Protected]
+POST   /me/photo                       [Protected]
+DELETE /me/photo                       [Protected]
+
+
+PUSH NOTIFICATION
+-----------------
+
+POST   /push-token                     [Protected]
+DELETE /push-token                     [Protected]
+PUT    /notification-settings          [Protected]
+GET    /notifications                  [Protected]
+PATCH  /notifications/{id}/read        [Protected]
+POST   /notifications/read-all         [Protected]
+
+Pagination example:
+GET /notifications?page=1&per_page=20
+
+
+CHAT, ANNOUNCEMENT AND SEARCH
+-----------------------------
+
+POST /chat                             [Protected]
+GET  /announcements                    [Protected]
+GET  /profile-search                   [Protected]
+
+
+QUICK REFERENCE
+---------------
+
+GET /prefixes                          [Protected]
+GET /positions                         [Protected]
+GET /lines                             [Protected]
+GET /main-units                        [Protected]
+GET /sub-units                         [Protected]
+
+
+REFERENCE OPTIONS
+-----------------
+
+GET /ref/profile-options               [Protected]
+GET /ref/search-options                [Protected]
+GET /ref/search-fields                 [Protected]
+GET /ref/expertise-options             [Protected]
+GET /ref/interest-options              [Protected]
+GET /ref/research-types                [Protected]
+GET /ref/research-levels               [Protected]
+GET /ref/research-pmu-types            [Protected]
+GET /ref/journal-types                 [Protected]
+GET /ref/degrees                       [Protected]
+GET /ref/departments                   [Protected]
+GET /ref/expertise-groups              [Protected]
+
+
+RESEARCH CRUD
+-------------
+
+GET    /researches                     [Protected]
+POST   /researches                     [Protected]
+GET    /researches/{id}                [Protected]
+PUT    /researches/{id}                [Protected]
+DELETE /researches/{id}                [Protected]
+
+
+JOURNAL CRUD
+------------
+
+GET    /journals                       [Protected]
+POST   /journals                       [Protected]
+GET    /journals/{id}                  [Protected]
+PUT    /journals/{id}                  [Protected]
+DELETE /journals/{id}                  [Protected]
+
+
+BOOK CRUD
+---------
+
+GET    /books                          [Protected]
+POST   /books                          [Protected]
+GET    /books/{id}                     [Protected]
+PUT    /books/{id}                     [Protected]
+DELETE /books/{id}                     [Protected]
+
+
+PATENT CRUD
+-----------
+
+GET    /patents                        [Protected]
+POST   /patents                        [Protected]
+GET    /patents/{id}                   [Protected]
+PUT    /patents/{id}                   [Protected]
+DELETE /patents/{id}                   [Protected]
+
+
+AWARD CRUD
+----------
+
+GET    /awards                         [Protected]
+POST   /awards                         [Protected]
+GET    /awards/{id}                    [Protected]
+PUT    /awards/{id}                    [Protected]
+DELETE /awards/{id}                    [Protected]
+
+
+ACADEMIC CRUD
+-------------
+
+GET    /academics                      [Protected]
+POST   /academics                      [Protected]
+GET    /academics/{id}                 [Protected]
+PUT    /academics/{id}                 [Protected]
+DELETE /academics/{id}                 [Protected]
+
+
+TRAINING CRUD
+-------------
+
+GET    /trainings                      [Protected]
+POST   /trainings                      [Protected]
+GET    /trainings/{id}                 [Protected]
+PUT    /trainings/{id}                 [Protected]
+DELETE /trainings/{id}                 [Protected]
+
+
+LECTURER CRUD
+-------------
+
+GET    /lecturers                      [Protected]
+POST   /lecturers                      [Protected]
+GET    /lecturers/{id}                 [Protected]
+PUT    /lecturers/{id}                 [Protected]
+DELETE /lecturers/{id}                 [Protected]
+
+
+PROCEEDING CRUD
+---------------
+
+GET    /proceedings                    [Protected]
+POST   /proceedings                    [Protected]
+GET    /proceedings/{id}               [Protected]
+PUT    /proceedings/{id}               [Protected]
+DELETE /proceedings/{id}               [Protected]
+
+
+HSP CRUD
+--------
+
+GET    /hsps                           [Protected]
+POST   /hsps                           [Protected]
+GET    /hsps/{id}                      [Protected]
+PUT    /hsps/{id}                      [Protected]
+DELETE /hsps/{id}                      [Protected]
+
+
+WORK EXPERIENCE CRUD
+--------------------
+
+GET    /workexes                       [Protected]
+POST   /workexes                       [Protected]
+GET    /workexes/{id}                  [Protected]
+PUT    /workexes/{id}                  [Protected]
+DELETE /workexes/{id}                  [Protected]
+
+
+BOARD EXPERIENCE CRUD
+---------------------
+
+GET    /boardexes                      [Protected]
+POST   /boardexes                      [Protected]
+GET    /boardexes/{id}                 [Protected]
+PUT    /boardexes/{id}                 [Protected]
+DELETE /boardexes/{id}                 [Protected]
+
+
+EDUCATION CRUD
+--------------
+
+GET    /educations                     [Protected]
+POST   /educations                     [Protected]
+GET    /educations/{id}                [Protected]
+PUT    /educations/{id}                [Protected]
+DELETE /educations/{id}                [Protected]
+
+
+INTEREST CRUD
+-------------
+
+GET    /interests                      [Protected]
+POST   /interests                      [Protected]
+GET    /interests/{id}                 [Protected]
+PUT    /interests/{id}                 [Protected]
+DELETE /interests/{id}                 [Protected]
+
+
+EXPERTISE CRUD
+--------------
+
+GET    /expertises                     [Protected]
+POST   /expertises                     [Protected]
+GET    /expertises/{id}                [Protected]
+PUT    /expertises/{id}                [Protected]
+DELETE /expertises/{id}                [Protected]
+
+
+WEB ADMIN ROUTES
+----------------
+
+GET    /
+GET    /admin/login
+POST   /admin/login
+GET    /admin                          [Web Admin]
+POST   /admin/logout                   [Web Admin]
+GET    /admin/users                    [Web Admin]
+GET    /admin/users/{id}               [Web Admin]
+GET    /admin/users/{id}/edit          [Web Admin]
+PUT    /admin/users/{id}               [Web Admin]
+DELETE /admin/users/{id}               [Web Admin]
+
+
+IMPORTANT: IIS METHOD OVERRIDE
+------------------------------
+
+Server ปัจจุบันส่ง GET/POST ไป PHP 8.2 แต่ส่ง PUT/PATCH/DELETE ไป PHP 7.4
+Frontend จึงต้องเปลี่ยน PUT/PATCH/DELETE เป็น POST พร้อม header:
+
+X-HTTP-Method-Override: PUT
+X-HTTP-Method-Override: PATCH
+X-HTTP-Method-Override: DELETE
+
+Axios interceptor:
+
+api.interceptors.request.use((config) => {
+  const method = config.method?.toLowerCase();
+
+  if (['put', 'patch', 'delete'].includes(method)) {
+    config.headers['X-HTTP-Method-Override'] = method.toUpperCase();
+    config.method = 'post';
+    config.data ??= {};
+  }
+
+  return config;
+});
+
+เมื่อใส่ interceptor แล้ว frontend ยังเรียกแบบเดิมได้:
+
+api.put('/awards/2', data);
+api.delete('/awards/2');
+

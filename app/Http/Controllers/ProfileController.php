@@ -2,8 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Department;
-use App\Models\SubDepartment;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -47,9 +45,7 @@ class ProfileController extends Controller
             'educations',
             'workexes',
             'boardexes',
-            'researches.researchType',
-            'researches.researchPMUType',
-            'researches.researchLevel',
+            'researches',
             'journals',
             'proceedings',
             'books',
@@ -91,9 +87,6 @@ class ProfileController extends Controller
                     'research_type_id' => $r->research_type_id,
                     'research_pmu_type_id' => $r->research_PMU_type_id,
                     'research_level_id' => $r->research_level_id,
-                    'research_type' => $r->researchType?->name,
-                    'research_pmu_type' => $r->researchPMUType?->name,
-                    'research_level' => $r->researchLevel?->name,
                 ])->values(),
                 'journals' => $user->journals->map(fn ($j) => [
                     'year' => $j->year,
@@ -189,7 +182,7 @@ class ProfileController extends Controller
 
             // ข้อมูลที่แก้ไขได้
             'prefix_id'          => $user->prefix_th,
-            'birthdate'          => $user->birth_date?->format('Y-m-d'),
+            'birthdate'          => $user->birth_date ? $user->birth_date->format('Y-m-d') : null,
             'phone_work'         => $user->phone_work,
             'phone_mobile'       => $user->phone_mobile,
             'line_id'            => $user->line_id,
@@ -227,8 +220,6 @@ class ProfileController extends Controller
     public function update(Request $request)
     {
         $request->validate([
-            'prefix_id'       => 'nullable|string|max:20',
-            'birthdate'       => 'nullable|date',
             'phone_work'      => 'nullable|string|max:20',
             'phone_mobile'    => 'nullable|string|max:20',
             'line_id'         => 'nullable|string|max:50',
@@ -245,9 +236,6 @@ class ProfileController extends Controller
             'zipcode'         => 'nullable|string|max:10',
             'position'        => 'nullable|string|max:100',
             'branch'          => 'nullable|string|max:100',
-            'main_unit'       => 'nullable|integer|exists:departments,dep_id',
-            'sub_unit'        => 'nullable|integer|exists:sub_departments,sub_dep_id',
-            'sub_unit_id'     => 'nullable|integer|exists:sub_departments,sub_dep_id',
         ]);
 
         $user = $request->user();
@@ -258,39 +246,6 @@ class ProfileController extends Controller
             'amphoe', 'province', 'zipcode',
             'position', 'branch',
         ]);
-
-        // frontend ส่ง prefix_id → เก็บใน prefix_th
-        if ($request->has('prefix_id')) {
-            $data['prefix_th'] = $request->input('prefix_id');
-        }
-
-        // frontend ส่ง birthdate → เก็บใน birth_date
-        if ($request->has('birthdate')) {
-            $data['birth_date'] = $request->input('birthdate');
-        }
-
-        // main_unit → department_id + ดึงชื่อมาด้วย
-        if ($request->filled('main_unit')) {
-            $data['department_id'] = $request->input('main_unit');
-            $department = Department::find($request->input('main_unit'));
-            if ($department) {
-                $data['department_name_th'] = $department->name;
-                $data['department_name_en'] = $department->name_en;
-            }
-        }
-
-        // รองรับทั้ง sub_unit และ sub_unit_id
-        $subUnit = $request->input('sub_unit_id') ?? $request->input('sub_unit');
-        if ($subUnit) {
-            $data['sub_dep_id'] = $subUnit;
-
-            // อัปเดต sub_department_name ถ้ามี
-            $sub = SubDepartment::find($subUnit);
-            if ($sub) {
-                $data['department_name_th'] = $data['department_name_th']
-                    ?? $user->department_name_th;
-            }
-        }
 
         $user->update($data);
 
@@ -340,9 +295,7 @@ class ProfileController extends Controller
             'educations',
             'workexes',
             'boardexes',
-            'researches.researchType',
-            'researches.researchPMUType',
-            'researches.researchLevel',
+            'researches',
             'journals',
             'proceedings',
             'books',
@@ -380,9 +333,6 @@ class ProfileController extends Controller
                 'research_type_id' => $r->research_type_id,
                 'research_pmu_type_id' => $r->research_PMU_type_id,
                 'research_level_id' => $r->research_level_id,
-                'research_type' => $r->researchType?->name,
-                'research_pmu_type' => $r->researchPMUType?->name,
-                'research_level' => $r->researchLevel?->name,
             ])->values(),
             'journals' => $user->journals->map(fn ($j) => [
                 'year' => $j->year,

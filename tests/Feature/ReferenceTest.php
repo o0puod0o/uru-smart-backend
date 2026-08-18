@@ -30,22 +30,29 @@ class ReferenceTest extends TestCase
         $this->getJson('/api/lines')
             ->assertOk()
             ->assertJsonFragment(['id' => 'สายวิชาการ'])
-            ->assertJsonFragment(['id' => 'สายบริหาร']);
+            ->assertJsonFragment(['id' => 'สายสนับสนุน'])
+            ->assertJsonMissing(['id' => 'สายบริหาร']);
     }
 
     public function test_positions_returns_array(): void
     {
-        $this->getJson('/api/positions')->assertOk()->assertJsonIsArray();
+        $response = $this->getJson('/api/positions');
+        $response->assertOk();
+        $this->assertIsArray($response->json());
     }
 
     public function test_main_units_returns_array(): void
     {
-        $this->getJson('/api/main-units')->assertOk()->assertJsonIsArray();
+        $response = $this->getJson('/api/main-units');
+        $response->assertOk();
+        $this->assertIsArray($response->json());
     }
 
     public function test_sub_units_returns_array(): void
     {
-        $this->getJson('/api/sub-units')->assertOk()->assertJsonIsArray();
+        $response = $this->getJson('/api/sub-units');
+        $response->assertOk();
+        $this->assertIsArray($response->json());
     }
 
     public function test_ref_profile_options_has_expected_keys(): void
@@ -64,17 +71,23 @@ class ReferenceTest extends TestCase
 
     public function test_ref_research_types_returns_array(): void
     {
-        $this->getJson('/api/ref/research-types')->assertOk()->assertJsonIsArray();
+        $response = $this->getJson('/api/ref/research-types');
+        $response->assertOk();
+        $this->assertIsArray($response->json());
     }
 
     public function test_ref_journal_types_returns_array(): void
     {
-        $this->getJson('/api/ref/journal-types')->assertOk()->assertJsonIsArray();
+        $response = $this->getJson('/api/ref/journal-types');
+        $response->assertOk();
+        $this->assertIsArray($response->json());
     }
 
     public function test_ref_degrees_returns_array(): void
     {
-        $this->getJson('/api/ref/degrees')->assertOk()->assertJsonIsArray();
+        $response = $this->getJson('/api/ref/degrees');
+        $response->assertOk();
+        $this->assertIsArray($response->json());
     }
 
     public function test_requires_auth(): void

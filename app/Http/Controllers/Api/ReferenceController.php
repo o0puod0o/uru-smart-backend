@@ -121,7 +121,7 @@ class ReferenceController extends Controller
                 'id' => $position->id,
                 'name' => $position->name,
                 'position_type_id' => $position->position_type_id,
-                'position_type_name' => $position->positionType?->name,
+                'position_type_name' => $position->positionType ? $position->positionType->name : null,
             ])
             ->values();
     }
@@ -145,8 +145,13 @@ class ReferenceController extends Controller
      */
     private function mainUnitItems()
     {
-        return Department::orderBy('name')
-            ->get(['dep_id as id', 'name', 'name_en']);
+        $query = Department::orderBy('name');
+
+        if ($names = config('uru_units.main_units', [])) {
+            $query->whereIn('name', $names);
+        }
+
+        return $query->get(['dep_id as id', 'name', 'name_en']);
     }
 
     /**
@@ -157,6 +162,11 @@ class ReferenceController extends Controller
     private function subUnitItems()
     {
         $query = SubDepartment::orderBy('name');
+
+        if ($names = config('uru_units.sub_units', [])) {
+            $query->whereIn('name', $names);
+        }
+
         if (request()->has('main_unit_id')) {
             $query->where('dep_id', request('main_unit_id'));
         }

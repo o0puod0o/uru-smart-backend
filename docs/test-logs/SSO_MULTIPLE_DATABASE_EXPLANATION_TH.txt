@@ -1,0 +1,380 @@
+เอกสารอธิบายการใช้งาน SSO ร่วมกับ Multiple Database
+====================================================
+
+โปรเจกต์: URU SMART / Mobile Backend
+วันที่จัดทำ: 13 สิงหาคม 2026
+
+
+1) ภาพรวมของระบบ
+-----------------
+
+ระบบนี้เป็น Laravel Backend ที่ออกแบบให้สามารถใช้งานหลายฐานข้อมูลในโปรเจกต์เดียวกันได้
+โดยใช้ความสามารถ Multiple Database Connections ของ Laravel
+
+ใน local ปัจจุบันมี database ที่ใช้งานหลัก 3 ตัว ได้แก่
+
+1. mobile
+2. expert2
+3. lrdsystem2
+
+โดยแต่ละ database มีหน้าที่แตกต่างกัน
+
+
+2) หน้าที่ของแต่ละ Database
+---------------------------
+
+2.1 mobile
+
+เป็นฐานข้อมูลหลักของระบบ Laravel Backend
+
+ใช้สำหรับเก็บข้อมูลที่ระบบของเราต้องจัดการเอง เช่น
+
+- users
+- personal_access_tokens
+- notifications
+- proposals / reports ของระบบใหม่
+- ข้อมูลอื่น ๆ ที่ระบบ Laravel สร้างขึ้น
+
+เมื่อผู้ใช้ login ผ่าน SSO สำเร็จ ระบบจะนำข้อมูลผู้ใช้จาก SSO มา insert หรือ update
+ลงในตาราง:
+
+mobile.users
+
+ดังนั้น mobile.users คือ table กลางของระบบเรา
+ใช้เก็บ user ที่ผ่านการ login แล้ว
+
+
+2.2 expert2
+
+เป็นฐานข้อมูลเดิมที่เก็บข้อมูล profile / portfolio / ข้อมูลผู้เชี่ยวชาญ
+
+ตัวอย่างตารางที่ใช้งาน:
+
+- expert2.users
+- expert2.education
+- expert2.has_research
+- expert2.has_journal
+- expert2.has_interest
+- expert2.workex
+
+ปัจจุบันระบบใช้ expert2 เป็นแหล่งอ่านข้อมูลหลังจาก login แล้ว
+ไม่ได้ใช้ expert2 เป็นตัวตรวจสอบ username/password
+
+กล่าวคือ:
+
+SSO เป็นตัว login
+expert2 เป็นแหล่งข้อมูล profile เพิ่มเติม
+
+
+2.3 lrdsystem2
+
+เป็นฐานข้อมูลเดิมที่เก็บข้อมูลด้านงานวิจัย / โครงการ / researcher
+
+ตัวอย่างตารางที่ใช้งาน:
+
+- lrdsystem2.researchers
+- lrdsystem2.projects
+- lrdsystem2.researchs
+- lrdsystem2.proposals
+
+ระบบใช้ lrdsystem2 เพื่อดึงข้อมูลโครงการและงานวิจัยของผู้ใช้หลังจาก login แล้ว
+
+
+3) Database ที่ไม่เกี่ยวข้องโดยตรง
+---------------------------------
+
+ใน phpMyAdmin จะเห็น database อื่น เช่น
+
+- information_schema
+- performance_schema
+
+สองตัวนี้เป็น database ระบบของ MySQL
+ไม่ใช่ database ของ application
+ไม่จำเป็นต้องแก้ไขหรือใช้งานโดยตรง
+
+
+4) การตั้งค่า Connection ใน Laravel
+-----------------------------------
+
+Laravel รองรับ multiple database connection ผ่านไฟล์:
+
+config/database.php
+
+ในระบบนี้มี connection หลัก ๆ ดังนี้
+
+1. mysql
+   ใช้เชื่อมกับ database mobile
+
+2. expert
+   ใช้เชื่อมกับ database expert2
+
+3. lrd
+   ใช้เชื่อมกับ database lrdsystem2
+
+ตัวอย่างแนวคิด:
+
+mysql  -> mobile
+expert -> expert2
+lrd    -> lrdsystem2
+
+
+5) Flow การ Login
+-----------------
+
+Flow การ login ที่ออกแบบไว้คือ:
+
+1. Frontend ส่ง username/password ไปที่ backend
+
+   POST /api/auth/login
+
+2. Backend Laravel ส่งข้อมูล login ไปตรวจสอบกับ SSO
+
+3. SSO ตรวจสอบว่า username/password ถูกต้องหรือไม่
+
+4. ถ้าถูกต้อง SSO จะส่ง access_token หรือ userinfo กลับมา
+
+5. Backend ใช้ access_token ไปขอข้อมูลผู้ใช้จาก SSO
+
+6. SSO ส่งข้อมูลผู้ใช้กลับมาในรูปแบบ callback/userinfo
+
+7. Backend นำข้อมูลจาก SSO มา insert หรือ update เข้า mobile.users
+
+8. Backend ออก Sanctum token ของระบบเราเองให้ frontend
+
+9. Frontend ใช้ Sanctum token นี้ในการเรียก API อื่น ๆ ของระบบ
+
+
+6) ตัวอย่างข้อมูล Callback/Userinfo จาก SSO
+-------------------------------------------
+
+ตัวอย่างโครงสร้างข้อมูลที่ SSO ส่งกลับมา:
+
+{
+    "id": 2174,
+    "code": "205234",
+    "type": "TEACHER",
+    "degree": "MASTER",
+    "prefix_en": "Mr.",
+    "first_name_en": "Phanuwat",
+    "last_name_en": "khanwat",
+    "prefix_th": "นาย",
+    "first_name_th": "ภานุวัฒน์",
+    "last_name_th": "ขันจา",
+    "gender": "MALE",
+    "faculty_id": 5,
+    "faculty_name_th": "คณะเทคโนโลยีอุตสาหกรรม",
+    "department_id": 122,
+    "department_name_th": "หลักสูตรวิศวกรรมบัณฑิต",
+    "email": "phanuwat@live.uru.ac.th",
+    "status": "ACTIVE",
+    "birth_date": "1980-04-10",
+    "last_updated_at": "2026-04-07 06:12:29",
+    "username": "phanuwat",
+    "citizen_id": "555"
+}
+
+ข้อมูลชุดนี้จะถูกนำมา sync เข้า mobile.users
+
+
+7) Mapping ข้อมูลจาก SSO เข้า mobile.users
+------------------------------------------
+
+ตัวอย่าง field mapping:
+
+SSO id              -> mobile.users.sso_id
+SSO code            -> mobile.users.code
+SSO username        -> mobile.users.username
+SSO citizen_id      -> mobile.users.citizen_id
+SSO email           -> mobile.users.email
+SSO first_name_th   -> mobile.users.first_name_th
+SSO last_name_th    -> mobile.users.last_name_th
+SSO faculty_id      -> mobile.users.faculty_id
+SSO department_id   -> mobile.users.department_id
+SSO last_updated_at -> mobile.users.sso_last_updated_at
+
+ถ้า user มีอยู่แล้ว ระบบจะ update
+ถ้า user ยังไม่มี ระบบจะ insert ใหม่
+
+
+8) การดึงข้อมูลจาก expert2 และ lrdsystem2 หลัง Login
+-----------------------------------------------------
+
+หลังจาก login แล้ว backend จะรู้ว่าผู้ใช้คือใครจาก mobile.users
+
+ตัวอย่างข้อมูลใน mobile.users:
+
+username   = 3530900177802
+citizen_id = 3530900177802
+
+ระบบจะใช้ค่าเหล่านี้ไปค้นข้อมูลใน expert2 และ lrdsystem2
+
+
+8.1 การเชื่อมกับ expert2
+
+ใช้ key หลัก:
+
+mobile.users.citizen_id = expert2.users.id_card
+
+ตัวอย่าง:
+
+3530900177802 = 3530900177802
+
+เมื่อพบ user ใน expert2 แล้ว ระบบสามารถดึงข้อมูลเพิ่มเติม เช่น
+
+- profile
+- education
+- research
+- journal
+- interest
+- work experience
+
+
+8.2 การเชื่อมกับ lrdsystem2
+
+ใช้ key หลัก / fallback:
+
+1. mobile.users.citizen_id = lrdsystem2.researchers.idcard
+2. mobile.users.citizen_id = lrdsystem2.researchers.codeuser
+3. mobile.users.username   = lrdsystem2.researchers.username
+
+ตัวอย่างที่ทดสอบได้จริง:
+
+mobile.users.citizen_id       = 3530900177802
+lrdsystem2.researchers.codeuser = 3530900177802
+
+เมื่อพบ researcher แล้ว ระบบสามารถดึงข้อมูลเพิ่มเติม เช่น
+
+- projects
+- researchs
+- proposals
+
+
+9) Endpoint ที่ Frontend ใช้งาน
+-------------------------------
+
+Frontend ใช้ endpoint หลักดังนี้
+
+9.1 Login
+
+POST /api/auth/login
+
+ตัวอย่าง request:
+
+{
+    "email": "3530900177802",
+    "password": "password"
+}
+
+หมายเหตุ:
+field email ยังใช้ชื่อเดิมเพื่อไม่กระทบ frontend เดิม
+แต่ backend รองรับได้ทั้ง email, username หรือ citizen_id
+
+
+9.2 ดูข้อมูลผู้ใช้ที่ login
+
+GET /api/me
+
+Header:
+
+Authorization: Bearer <token>
+Accept: application/json
+
+
+9.3 ดึงข้อมูลรวมจาก expert2 และ lrdsystem2
+
+GET /api/me/external-profile
+
+Header:
+
+Authorization: Bearer <token>
+Accept: application/json
+
+
+9.4 Logout
+
+POST /api/auth/logout
+
+Header:
+
+Authorization: Bearer <token>
+Accept: application/json
+
+
+10) ตัวอย่าง Response หลัง Test
+-------------------------------
+
+ผลทดสอบหลัง login และดึงข้อมูลจากหลาย database:
+
+{
+    "login_status": "200",
+    "user_id": 4,
+    "user_email": "mr.phanuwat@gmail.com",
+    "external_profile_status": "200",
+    "expert_users_id": 304,
+    "expert_name": "ภานุวัฒน์ ขันจา",
+    "expert_id_card": "3530900177802",
+    "lrd_researcher_id": 881,
+    "lrd_codeuser": "3530900177802",
+    "expert_education_count": 2,
+    "expert_research_count": 10,
+    "lrd_projects_count": 5,
+    "lrd_researchs_count": 4
+}
+
+
+11) สิ่งที่ทดสอบแล้ว
+--------------------
+
+ทดสอบแล้วพบว่า:
+
+- Laravel เชื่อมต่อ 3 database ได้จริง
+- Mock SSO สามารถจำลอง SSO จริงได้
+- Login ผ่าน /api/auth/login ได้
+- ข้อมูล callback/userinfo จาก SSO ถูก sync เข้า mobile.users ได้
+- token ของระบบ Laravel ใช้เรียก protected API ได้
+- /api/me/external-profile สามารถดึงข้อมูลจาก expert2 และ lrdsystem2 ได้
+- ภาษาไทยใน database แสดงผลถูกต้องหลัง import ด้วย utf8mb4
+
+
+12) สรุป Architecture
+---------------------
+
+ระบบแบ่งหน้าที่ของแต่ละส่วนดังนี้
+
+SSO / Mock SSO:
+ใช้ยืนยันตัวตนผู้ใช้
+
+mobile:
+ใช้เป็น database หลักของระบบ Laravel
+เก็บ user หลัง login และ token ของระบบ
+
+expert2:
+ใช้เป็นฐานข้อมูล profile / portfolio / ข้อมูลผู้เชี่ยวชาญ
+
+lrdsystem2:
+ใช้เป็นฐานข้อมูลโครงการและงานวิจัย
+
+Frontend:
+ไม่ต้องเชื่อม database เอง
+Frontend เรียก API ของ Laravel เท่านั้น
+
+Backend Laravel:
+เป็นตัวกลางในการ login, sync user, ออก token และดึงข้อมูลจากหลาย database
+
+
+13) สรุปสุดท้าย
+---------------
+
+ระบบนี้สามารถใช้งาน SSO ร่วมกับ Multiple Database ได้จริง
+
+เมื่อผู้ใช้ login สำเร็จ ระบบจะ sync ข้อมูลผู้ใช้จาก SSO เข้า mobile.users
+จากนั้นใช้ข้อมูลผู้ใช้ เช่น citizen_id หรือ username
+เพื่อ query ข้อมูลเพิ่มเติมจาก expert2 และ lrdsystem2
+
+ข้อดีของแนวทางนี้คือ:
+
+- Frontend ใช้ endpoint เดิมได้
+- SSO สามารถเปลี่ยนจาก Mock SSO เป็น SSO จริงได้โดยปรับ config
+- expert2 และ lrdsystem2 ยังแยกกันอยู่ ไม่ต้องรวม database
+- Laravel เป็นตัวกลางจัดการ connection และ mapping ระหว่าง database
+

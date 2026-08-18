@@ -1,0 +1,20 @@
+{
+  "info": {"name": "URU Smart Project Management", "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"},
+  "variable": [{"key":"base_url","value":"http://localhost:8001/api"},{"key":"token","value":""},{"key":"id","value":"1"}],
+  "auth": {"type":"bearer","bearer":[{"key":"token","value":"{{token}}","type":"string"}]},
+  "item": [
+    {"name":"Journals","item":[
+      {"name":"List all","request":{"method":"GET","url":"{{base_url}}/journals?scope=all&page=1&per_page=20"}},
+      {"name":"Create","request":{"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"body":{"mode":"raw","raw":"{\"name\":\"Journal\",\"year\":\"2026\",\"journal_type_id\":1,\"budget\":1000}"},"url":"{{base_url}}/journals"}}
+    ]},
+    {"name":"Proposals","item":[
+      {"name":"List","request":{"method":"GET","url":"{{base_url}}/proposals?scope=mine"}},
+      {"name":"Create","request":{"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"body":{"mode":"raw","raw":"{\"title\":\"Proposal\",\"year\":\"2026\",\"budget\":50000}"},"url":"{{base_url}}/proposals"}},
+      {"name":"Approve (Admin)","request":{"method":"PUT","header":[{"key":"Content-Type","value":"application/json"}],"body":{"mode":"raw","raw":"{\"status\":\"approved\"}"},"url":"{{base_url}}/proposals/{{id}}"}}
+    ]},
+    {"name":"Reports","item":[{"name":"List","request":{"method":"GET","url":"{{base_url}}/reports?scope=mine"}}]},
+    {"name":"Files","item":[{"name":"List","request":{"method":"GET","url":"{{base_url}}/files?entity_type=proposal&entity_id={{id}}"}}]},
+    {"name":"Notifications","item":[{"name":"Unread count","request":{"method":"GET","url":"{{base_url}}/notifications/unread-count"}}]},
+    {"name":"Admin","item":[{"name":"Users","request":{"method":"GET","url":"{{base_url}}/admin/users"}}]}
+  ]
+}

@@ -1,0 +1,472 @@
+คู่มือขึ้น Server จริง: URU Smart Backend
+===========================================
+
+อัปเดตล่าสุด: 3 กรกฎาคม 2026
+
+
+1. ข้อมูลระบบ
+-------------
+
+Framework: Laravel 10
+PHP ที่ต้องใช้: PHP 8.1 ขึ้นไป
+PHP ที่ใช้งานกับ GET/POST บน Server ปัจจุบัน: PHP 8.2.12
+Web Server: Microsoft IIS 10
+Database: MySQL
+การอัปโหลด: FTPS port 990
+
+API Base URL:
+https://aritapp.uru.ac.th/urusmart/api
+
+Web Admin URL:
+https://aritapp.uru.ac.th/urusmart/admin/login
+
+Health Check:
+https://aritapp.uru.ac.th/urusmart/api/ping
+
+
+2. ไฟล์ที่ต้องอัปโหลด
+---------------------
+
+อัปโหลด:
+
+app/
+bootstrap/
+config/
+database/
+public/
+resources/
+routes/
+storage/
+vendor/                  (ต้องอัปโหลด หาก Server รัน composer install ไม่ได้)
+artisan
+composer.json
+composer.lock
+.env                     (ใช้ไฟล์ของ Server ห้ามใช้ของ local ทับตรง ๆ)
+
+ไม่ต้องอัปโหลด:
+
+.git/
+.agents/
+.claude/
+node_modules/
+tests/
+docker/
+Dockerfile
+docker-compose.yml
+phpunit.xml
+README.md
+.phpunit.result.cache
+
+
+3. ค่า .env สำหรับ Server
+-------------------------
+
+ค่าหลัก:
+
+APP_ENV=production
+APP_DEBUG=false
+APP_URL=https://aritapp.uru.ac.th/urusmart
+FILESYSTEM_DISK=public
+QUEUE_CONNECTION=sync
+CORS_ALLOWED_ORIGINS=*
+
+เนื่องจาก PHP process ไม่มีสิทธิ์เขียน storage บางส่วน ให้ใช้:
+
+LOG_CHANNEL=errorlog
+CACHE_DRIVER=array
+SESSION_DRIVER=cookie
+
+ช่วงทดสอบด้วย Mock SSO:
+
+SSO_MOCK=true
+SSO_MOCK_EMAIL=<อีเมลทดสอบ>
+SSO_MOCK_PASSWORD=<รหัสผ่านทดสอบ>
+
+เมื่อเปิดใช้งาน SSO จริง:
+
+SSO_MOCK=false
+SSO_BASE_URL=<URL ของ SSO>
+SSO_CLIENT_ID=<Client ID>
+SSO_CLIENT_SECRET=<Client Secret>
+WEB_ADMIN_EMAILS=admin1@uru.ac.th,admin2@uru.ac.th
+
+หมายเหตุ:
+- ห้ามเผยแพร่ APP_KEY, DB_PASSWORD, SSO_CLIENT_SECRET และ API keys
+- ตาราง users ไม่มี password
+- การตรวจรหัสผ่านทำโดย SSO ไม่ใช่ฐานข้อมูล Laravel
+- เมื่อ SSO_MOCK=true จะ login ได้เฉพาะบัญชี Mock ใน .env
+
+
+4. ขั้นตอนฐานข้อมูล
+-------------------
+
+ฐานข้อมูล Server มีตาราง users และตารางเดิมอยู่แล้ว
+ประวัติในตาราง migrations ไม่ตรงกับโครงสร้างฐานข้อมูลจริง
+ห้ามรัน php artisan migrate รวมทั้งหมด เพราะระบบจะพยายามสร้าง users ซ้ำ
+
+ให้รันเฉพาะ migration ใหม่:
+
+php artisan migrate --path=database/migrations/2026_06_29_000000_create_push_tokens_and_notification_settings_tables.php --force
+
+php artisan migrate --path=database/migrations/2026_07_02_000000_create_notifications_tables.php --force
+
+ตารางที่เพิ่ม:
+
+push_tokens
+notification_settings
+notifications
+scheduled_notifications
+
+Database user ของ Hosting ไม่มีสิทธิ์ REFERENCES
+จึงปรับ migration ให้ใช้ unsignedBigInteger + index แทน foreign key
+
+
+5. การ Login API
+----------------
+
+Endpoint:
+POST https://aritapp.uru.ac.th/urusmart/api/auth/login
+
+Body:
+
+{
+  "email": "user@example.com",
+  "password": "password"
+}
+
+หลัง login ต้องส่ง token ทุก protected request:
+
+Authorization: Bearer <token>
+Accept: application/json
+
+Logout:
+POST https://aritapp.uru.ac.th/urusmart/api/auth/logout
+
+
+6. Web Admin Blade
+------------------
+
+หน้า Login:
+https://aritapp.uru.ac.th/urusmart/admin/login
+
+หน้าจัดการผู้ใช้:
+https://aritapp.uru.ac.th/urusmart/admin/users
+
+ความสามารถ:
+
+- Login ผ่าน SSO หรือ Mock SSO
+- ใช้ Laravel session และ CSRF protection
+- ค้นหารายชื่อผู้ใช้
+- ดูรายละเอียดผู้ใช้
+- แก้ไขข้อมูลผู้ใช้
+- ลบผู้ใช้
+- Logout
+
+ในโหมด Mock อีเมลที่กำหนดใน SSO_MOCK_EMAIL จะเป็น Web Admin
+เมื่อใช้ SSO จริง ต้องกำหนดรายชื่อผู้ดูแลใน WEB_ADMIN_EMAILS
+
+
+7. Error ที่พบและวิธีแก้
+------------------------
+
+ERROR 1: CORS preflight OPTIONS ได้ 500
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+อาการ:
+
+Access to XMLHttpRequest has been blocked by CORS policy
+No 'Access-Control-Allow-Origin' header is present
+OPTIONS request ได้ HTTP 500
+
+สาเหตุ:
+
+IIS ส่ง OPTIONS ไปให้ PHP 7.4.9 แต่ Laravel 10 ต้องใช้ PHP 8.1 ขึ้นไป
+request ปกติ GET ใช้ PHP 8.2.12
+
+วิธีแก้:
+
+เพิ่มไฟล์:
+
+public/web.config
+public/cors-preflight.php
+
+web.config จะส่ง OPTIONS ของ /api ไปยัง cors-preflight.php
+ไฟล์ดังกล่าวตอบ HTTP 204 พร้อม headers:
+
+Access-Control-Allow-Origin: *
+Access-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS
+Access-Control-Allow-Headers: Authorization, Content-Type, Accept, Origin, X-Requested-With, X-HTTP-Method-Override
+
+ผลทดสอบหลังแก้:
+
+OPTIONS /api/auth/login -> 204
+
+
+ERROR 2: Login สำเร็จ แต่ protected API ได้ 500
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+อาการ:
+
+- Login ได้ token
+- GET /api/notifications พร้อม token ได้ 500
+- Browser แสดง Network Error หรือ CORS error
+- Logout ได้ 500
+
+สาเหตุจริง:
+
+PHP ไม่มีสิทธิ์เขียนไฟล์ต่อไปนี้:
+
+storage/logs/laravel.log
+storage/framework/cache/data/*
+
+ข้อความ error ที่พบ:
+
+Permission denied
+The stream or file storage/logs/laravel.log could not be opened in append mode
+Failed to open stream: Permission denied
+
+เมื่อ authenticated request พยายามเขียน cache จะเกิด exception
+และตอน Laravel พยายามเขียน log ก็เกิด exception ซ้ำอีก
+
+วิธีแก้จากฝั่งโปรเจกต์ เนื่องจากไม่มีสิทธิ์แก้ Windows ACL:
+
+LOG_CHANNEL=errorlog
+CACHE_DRIVER=array
+SESSION_DRIVER=cookie
+
+ผลทดสอบหลังแก้:
+
+Login -> สำเร็จ
+GET /api/notifications พร้อม Bearer token -> 200
+Logout -> 200
+CORS จาก localhost:8081 -> Access-Control-Allow-Origin: *
+
+วิธีแก้ระยะยาวที่แนะนำ:
+
+ให้ผู้ดูแล Server ให้สิทธิ์ Modify แก่ PHP/IIS Application Pool Identity ใน:
+
+storage/
+bootstrap/cache/
+
+จากนั้นสามารถกลับไปใช้:
+
+LOG_CHANNEL=stack
+CACHE_DRIVER=file
+SESSION_DRIVER=file
+
+
+ERROR 3: เพิ่มข้อมูลได้ แต่ PUT/PATCH/DELETE ได้ 500
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+อาการ:
+
+- POST เพิ่มข้อมูลสำเร็จ
+- PUT แก้ไขข้อมูลได้ 500
+- DELETE ลบข้อมูลได้ 500
+- Browser แสดง CORS error ซ้ำ เพราะ response 500 ไม่มี CORS header
+
+สาเหตุ:
+
+IIS ตั้ง PHP handler แยกตาม HTTP method:
+
+GET/POST         -> PHP 8.2.12
+PUT/PATCH/DELETE -> PHP 7.4.9
+
+Laravel 10 ไม่รองรับ PHP 7.4 จึงล้มก่อน request เข้า Laravel
+
+วิธีแก้ปัจจุบัน:
+
+ให้ frontend ส่ง request เป็น POST และใช้ header:
+
+X-HTTP-Method-Override: PUT
+X-HTTP-Method-Override: PATCH
+X-HTTP-Method-Override: DELETE
+
+เพิ่ม Axios interceptor:
+
+api.interceptors.request.use((config) => {
+  const method = config.method?.toLowerCase();
+
+  if (['put', 'patch', 'delete'].includes(method)) {
+    config.headers['X-HTTP-Method-Override'] = method.toUpperCase();
+    config.method = 'post';
+    config.data ??= {};
+  }
+
+  return config;
+});
+
+หลังเพิ่ม interceptor โค้ดเดิมยังเรียกได้:
+
+api.put('/awards/2', data);
+api.delete('/awards/2');
+
+ทดสอบจริงแล้ว:
+
+- POST สร้าง award ทดสอบ -> สำเร็จ
+- POST + Override PUT -> แก้ไขสำเร็จ
+- POST + Override DELETE -> ลบสำเร็จ
+- ลบข้อมูลทดสอบออกเรียบร้อย
+
+วิธีแก้ระยะยาวที่ดีที่สุด:
+
+ให้ผู้ดูแล IIS ปรับ Handler Mapping ให้ GET, POST, PUT, PATCH, DELETE และ OPTIONS
+ใช้ PHP 8.2 ตัวเดียวกันทั้งหมด
+
+
+ERROR 4: php artisan migrate แจ้ง Table users already exists
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+ข้อความ:
+
+SQLSTATE[42S01]: Base table or view already exists: 1050 Table 'users' already exists
+
+สาเหตุ:
+
+ฐานข้อมูลมีตาราง users อยู่แล้ว แต่ migration history ไม่ตรงกัน
+
+วิธีแก้:
+
+ห้ามรัน migration ทั้งหมด
+ให้ใช้ --path รันเฉพาะ migration ใหม่ตามข้อ 4
+
+
+ERROR 5: Migration แจ้ง REFERENCES command denied
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+ข้อความ:
+
+SQLSTATE[42000]: REFERENCES command denied
+
+สาเหตุ:
+
+MySQL user ของ Hosting ไม่มีสิทธิ์สร้าง foreign key
+
+วิธีแก้:
+
+เปลี่ยน foreignId()->constrained() เป็น unsignedBigInteger()
+แล้วเพิ่ม index แทน foreign key
+
+
+ERROR 6: API protected ตอบ 401
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+อาการ:
+
+GET /api/me, /api/notifications หรือ resource routes ได้ 401
+
+สาเหตุที่เป็นไปได้:
+
+- ไม่ได้ส่ง Authorization header
+- token หมดอายุหรือถูก logout แล้ว
+- ใช้ token เก่าหลัง restart/เปลี่ยน environment
+- header เขียนไม่ครบคำว่า Bearer
+
+รูปแบบที่ถูกต้อง:
+
+Authorization: Bearer <token>
+Accept: application/json
+
+ให้ clear token ฝั่ง frontend แล้ว login ใหม่ หากยังใช้ token เก่า
+
+
+ERROR 7: POST API ได้ 411 Length Required
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+สาเหตุ:
+
+IIS ต้องการ Content-Length สำหรับ POST บาง endpoint เช่น logout
+
+วิธีแก้:
+
+ส่ง request body อย่างน้อยเป็น object ว่างหรือข้อมูลเล็กน้อย:
+
+api.post('/auth/logout', {});
+
+
+ERROR 8: shadow*, pointerEvents deprecated warning
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+ข้อความตัวอย่าง:
+
+"shadow*" style props are deprecated. Use "boxShadow"
+props.pointerEvents is deprecated. Use style.pointerEvents
+
+สาเหตุ:
+
+เป็น warning จาก React Native Web/Frontend
+ไม่เกี่ยวกับ Laravel API, CORS หรือฐานข้อมูล
+
+วิธีแก้:
+
+- เปลี่ยน shadow props เป็น boxShadow สำหรับ Web
+- ย้าย pointerEvents ไปไว้ใน style
+- สามารถแก้ภายหลังได้ เพราะไม่ทำให้ API ใช้งานไม่ได้
+
+
+8. คำสั่งหลัง Deploy
+--------------------
+
+หากมี Terminal ให้รัน:
+
+php artisan optimize:clear
+
+หรือแยกเป็น:
+
+php artisan config:clear
+php artisan route:clear
+php artisan view:clear
+
+ห้ามใช้ config:cache หาก storage/bootstrap cache ยังไม่มีสิทธิ์เขียน
+
+
+9. Checklist ทดสอบหลัง Deploy
+------------------------------
+
+[ ] GET /api/ping ได้ 200
+[ ] OPTIONS /api/auth/login ได้ 204
+[ ] POST /api/auth/login ได้ token
+[ ] GET /api/me พร้อม token ได้ 200
+[ ] GET /api/notifications พร้อม token ได้ 200
+[ ] POST เพิ่ม resource ได้ 201
+[ ] POST + X-HTTP-Method-Override: PUT แก้ไขได้ 200
+[ ] POST + X-HTTP-Method-Override: DELETE ลบได้ 200
+[ ] POST /api/auth/logout ได้ 200
+[ ] GET /admin/login ได้ 200
+[ ] /admin/users เมื่อยังไม่ login redirect ไป /admin/login
+[ ] Web Admin login แล้วเข้าหน้า /admin/users ได้
+[ ] หน้า Web Admin ค้นหา ดู แก้ไข และลบผู้ใช้ได้
+[ ] Response จาก API มี Access-Control-Allow-Origin
+
+
+10. สถานะที่ทดสอบผ่านแล้ว
+-------------------------
+
+- อัปโหลด Laravel ผ่าน FTPS สำเร็จ
+- Migration notification 2 ไฟล์สำเร็จ
+- CORS preflight ได้ 204
+- API health check ได้ 200
+- Mock login ได้ token
+- Protected API พร้อม token ได้ 200
+- Notification tests ผ่าน 15 tests
+- Profile tests ผ่าน 13 tests
+- Web Admin tests ผ่าน 3 tests
+- Web Admin login บน Server จริงสำเร็จ
+- CRUD แบบ POST method override ผ่านครบ Create, Update และ Delete
+- Logout ได้ 200
+
+
+11. ข้อควรทำก่อนเปิด Production จริง
+------------------------------------
+
+1. เปลี่ยน SSO_MOCK=false
+2. ตรวจ SSO_BASE_URL, SSO_CLIENT_ID และ SSO_CLIENT_SECRET
+3. กำหนด WEB_ADMIN_EMAILS เฉพาะผู้ดูแล
+4. จำกัด CORS_ALLOWED_ORIGINS ให้เป็นโดเมน frontend จริง
+5. ให้ผู้ดูแล IIS ปรับทุก HTTP method ไป PHP 8.2
+6. ให้สิทธิ์เขียน storage และ bootstrap/cache แก่ PHP/IIS
+7. เปลี่ยนรหัสผ่าน FTPS เนื่องจากเคยส่งผ่านช่องทางสนทนา
+8. ตรวจ APP_DEBUG=false
+9. สำรองฐานข้อมูลก่อน deploy รอบใหญ่
+10. ทดสอบ login, CRUD, notification และ Web Admin อีกครั้ง
+

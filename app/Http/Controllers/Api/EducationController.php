@@ -7,6 +7,7 @@ use App\Models\Education;
 class EducationController extends BaseResourceController
 {
     protected string $modelClass = Education::class;
+    protected string $ownerColumn = 'id_card';
 
     protected array $rules = [
         'degree'     => 'required|integer',

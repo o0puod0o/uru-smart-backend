@@ -1,0 +1,236 @@
+URU Smart Backend - Local LAN API Endpoints สำหรับ Frontend
+วันที่ทำไฟล์: 2026-08-17
+
+Base URL สำหรับเครื่องในวง LAN เดียวกัน:
+
+http://10.1.73.75:8001
+
+API Base URL:
+
+http://10.1.73.75:8001/api
+
+หมายเหตุ:
+- เครื่อง backend ต้องเปิด Docker อยู่
+- มือถือ/เครื่อง frontend ต้องอยู่ Wi-Fi/LAN วงเดียวกัน
+- ทุก endpoint หลัง login ต้องส่ง header:
+
+Authorization: Bearer <token>
+Accept: application/json
+
+============================================================
+1) AUTH / APP หลัก
+============================================================
+
+ใช้สำหรับ login/logout และข้อมูล user ที่ login อยู่
+
+POST   http://10.1.73.75:8001/api/auth/login
+POST   http://10.1.73.75:8001/api/auth/logout
+GET    http://10.1.73.75:8001/api/me
+PUT    http://10.1.73.75:8001/api/me
+GET    http://10.1.73.75:8001/api/me/external-profile
+POST   http://10.1.73.75:8001/api/me/photo
+DELETE http://10.1.73.75:8001/api/me/photo
+
+ตัวอย่าง login:
+
+POST /api/auth/login
+
+Body:
+email=3530900177802
+password=password
+
+Response จะได้ token:
+
+{
+  "token": "<token>",
+  "user": {
+    "id": 1,
+    "code": "...",
+    "full_name_th": "...",
+    "email": "..."
+  }
+}
+
+หลังจากนั้นให้ frontend เอา token ไปใส่ header ทุกครั้ง
+
+Authorization: Bearer <token>
+
+หมายเหตุ:
+- ช่อง email ใน login ใช้เป็น identifier ได้ เช่น email / username / id_card ตาม SSO
+- PUT /api/me แก้ได้เฉพาะข้อมูลของ mobile app เช่น เบอร์, bio, line, address
+- ข้อมูล master เช่น ชื่อ, นามสกุล, prefix, วันเกิด, หน่วยงาน มาจาก SSO/user master ไม่ให้ mobile override
+
+============================================================
+2) APP หลัก / Expert Profile - อิง expert2
+============================================================
+
+กลุ่มนี้คือข้อมูลโปรไฟล์/ประวัติ/ผลงานของ user ใน app หลัก
+ผูกเจ้าของข้อมูลด้วย id_card จาก token
+frontend ไม่ต้องส่ง id_card เอง
+
+expert2.users = read-only
+ตารางอื่น เช่น education, interest, research, journal, workex = CRUD ได้
+
+Education:
+GET    http://10.1.73.75:8001/api/educations
+POST   http://10.1.73.75:8001/api/educations
+GET    http://10.1.73.75:8001/api/educations/{id}
+PUT    http://10.1.73.75:8001/api/educations/{id}
+DELETE http://10.1.73.75:8001/api/educations/{id}
+
+Interests:
+GET    http://10.1.73.75:8001/api/interests
+POST   http://10.1.73.75:8001/api/interests
+GET    http://10.1.73.75:8001/api/interests/{id}
+PUT    http://10.1.73.75:8001/api/interests/{id}
+DELETE http://10.1.73.75:8001/api/interests/{id}
+
+Researches / ผลงานวิจัยฝั่ง expert profile:
+GET    http://10.1.73.75:8001/api/researches
+POST   http://10.1.73.75:8001/api/researches
+GET    http://10.1.73.75:8001/api/researches/{id}
+PUT    http://10.1.73.75:8001/api/researches/{id}
+DELETE http://10.1.73.75:8001/api/researches/{id}
+
+Journals:
+GET    http://10.1.73.75:8001/api/journals
+POST   http://10.1.73.75:8001/api/journals
+GET    http://10.1.73.75:8001/api/journals/{id}
+PUT    http://10.1.73.75:8001/api/journals/{id}
+DELETE http://10.1.73.75:8001/api/journals/{id}
+
+Work Experiences:
+GET    http://10.1.73.75:8001/api/workexes
+POST   http://10.1.73.75:8001/api/workexes
+GET    http://10.1.73.75:8001/api/workexes/{id}
+PUT    http://10.1.73.75:8001/api/workexes/{id}
+DELETE http://10.1.73.75:8001/api/workexes/{id}
+
+Public Profile:
+GET http://10.1.73.75:8001/api/profile/{id}
+GET http://10.1.73.75:8001/api/profile/{id}/pdf
+GET http://10.1.73.75:8001/api/profile-search
+
+Reference / Options:
+GET http://10.1.73.75:8001/api/ref/profile-options
+GET http://10.1.73.75:8001/api/ref/search-options
+GET http://10.1.73.75:8001/api/ref/search-fields
+GET http://10.1.73.75:8001/api/ref/expertise-options
+GET http://10.1.73.75:8001/api/ref/interest-options
+GET http://10.1.73.75:8001/api/ref/research-types
+GET http://10.1.73.75:8001/api/ref/research-levels
+GET http://10.1.73.75:8001/api/ref/research-pmu-types
+GET http://10.1.73.75:8001/api/ref/journal-types
+GET http://10.1.73.75:8001/api/ref/degrees
+GET http://10.1.73.75:8001/api/ref/departments
+GET http://10.1.73.75:8001/api/ref/expertise-groups
+
+============================================================
+3) MODULE งานวิจัย - อิง lrdsystem2
+============================================================
+
+กลุ่มนี้คือ module ย่อย “ระบบจัดการงานวิจัย”
+ใช้หลังจาก login ผ่าน app หลักแล้ว
+ผูกเจ้าของข้อมูลด้วย researcher_id จาก token/user mapping
+frontend ไม่ต้องส่ง researcher_id เอง
+
+lrdsystem2.users = read-only
+lrdsystem2.researchers = read-only
+ตารางอื่นใน module งานวิจัย = CRUD ได้
+
+อ่านข้อมูล:
+- GET ปกติ = อ่านของตัวเอง
+- GET ?scope=all = อ่านของทุกคนได้
+- POST/PUT/DELETE = ทำได้เฉพาะข้อมูลของตัวเอง
+
+Reference:
+GET http://10.1.73.75:8001/api/lrd/facultys
+GET http://10.1.73.75:8001/api/lrd/branchs
+GET http://10.1.73.75:8001/api/lrd/branchs?faculty_id={faculty_id}
+GET http://10.1.73.75:8001/api/lrd/paperindexs
+
+LRD Educations:
+GET    http://10.1.73.75:8001/api/lrd/educations
+POST   http://10.1.73.75:8001/api/lrd/educations
+GET    http://10.1.73.75:8001/api/lrd/educations/{id}
+PUT    http://10.1.73.75:8001/api/lrd/educations/{id}
+DELETE http://10.1.73.75:8001/api/lrd/educations/{id}
+
+Papers:
+GET    http://10.1.73.75:8001/api/lrd/papers
+GET    http://10.1.73.75:8001/api/lrd/papers?scope=all
+GET    http://10.1.73.75:8001/api/lrd/papers?researcher_id={researcher_id}
+POST   http://10.1.73.75:8001/api/lrd/papers
+GET    http://10.1.73.75:8001/api/lrd/papers/{id}
+PUT    http://10.1.73.75:8001/api/lrd/papers/{id}
+DELETE http://10.1.73.75:8001/api/lrd/papers/{id}
+
+Projects:
+GET    http://10.1.73.75:8001/api/lrd/projects
+GET    http://10.1.73.75:8001/api/lrd/projects?scope=all
+GET    http://10.1.73.75:8001/api/lrd/projects?researcher_id={researcher_id}
+POST   http://10.1.73.75:8001/api/lrd/projects
+GET    http://10.1.73.75:8001/api/lrd/projects/{id}
+PUT    http://10.1.73.75:8001/api/lrd/projects/{id}
+DELETE http://10.1.73.75:8001/api/lrd/projects/{id}
+
+Researchs:
+GET    http://10.1.73.75:8001/api/lrd/researchs
+GET    http://10.1.73.75:8001/api/lrd/researchs?scope=all
+GET    http://10.1.73.75:8001/api/lrd/researchs?researcher_id={researcher_id}
+POST   http://10.1.73.75:8001/api/lrd/researchs
+GET    http://10.1.73.75:8001/api/lrd/researchs/{id}
+PUT    http://10.1.73.75:8001/api/lrd/researchs/{id}
+DELETE http://10.1.73.75:8001/api/lrd/researchs/{id}
+
+Proposals:
+GET    http://10.1.73.75:8001/api/lrd/proposals
+GET    http://10.1.73.75:8001/api/lrd/proposals?scope=all
+GET    http://10.1.73.75:8001/api/lrd/proposals?researcher_id={researcher_id}
+POST   http://10.1.73.75:8001/api/lrd/proposals
+GET    http://10.1.73.75:8001/api/lrd/proposals/{id}
+PUT    http://10.1.73.75:8001/api/lrd/proposals/{id}
+DELETE http://10.1.73.75:8001/api/lrd/proposals/{id}
+
+============================================================
+4) สรุป flow สำหรับ frontend
+============================================================
+
+1. Login:
+POST http://10.1.73.75:8001/api/auth/login
+
+2. เก็บ token จาก response
+
+3. เรียกข้อมูล user:
+GET http://10.1.73.75:8001/api/me
+
+4. ถ้าจะใช้ข้อมูล app/expert profile:
+ใช้ endpoint กลุ่ม /api/educations, /api/researches, /api/journals, ...
+
+5. ถ้าจะเข้า module งานวิจัย:
+ใช้ endpoint กลุ่ม /api/lrd/...
+
+6. ทุก request หลัง login ต้องแนบ:
+Authorization: Bearer <token>
+
+============================================================
+5) สรุปแยก database
+============================================================
+
+mobile_db:
+- users ที่ login เข้า app
+- token
+- notification
+- ข้อมูล app เฉพาะทางที่ไม่ได้อยู่ใน expert2/lrdsystem2
+
+expert2:
+- users = read-only
+- education / has_interest / has_research / has_journal / workex = CRUD
+- ผูกเจ้าของด้วย id_card
+
+lrdsystem2:
+- users = read-only
+- researchers = read-only
+- papers / projects / researchs / proposals / educations = CRUD
+- ผูกเจ้าของด้วย researcher_id
+

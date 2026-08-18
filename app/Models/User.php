@@ -2,8 +2,6 @@
 
 namespace App\Models;
 
-use App\Models\Department;
-use App\Models\SubDepartment;
 use Laravel\Sanctum\HasApiTokens;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -33,7 +31,7 @@ class User extends Authenticatable
         'facebook', 'website', 'bio', 'profile_picture', 'sso_picture',
         'address', 'moo', 'road', 'tambon',
         'amphoe', 'province', 'zipcode',
-        'position', 'branch', 'push_token',
+        'position', 'branch', 'push_token', 'role', 'lrd_researcher_id',
     ];
 
     protected $casts = [
@@ -56,22 +54,22 @@ class User extends Authenticatable
 
     public function educations()
     {
-        return $this->hasMany(Education::class, 'user_id', 'id');
+        return $this->hasMany(Education::class, 'id_card', 'citizen_id');
     }
 
     public function interests()
     {
-        return $this->hasMany(HasInterest::class, 'user_id', 'id');
+        return $this->hasMany(HasInterest::class, 'id_card', 'citizen_id');
     }
 
     public function researches()
     {
-        return $this->hasMany(HasResearch::class, 'user_id', 'id');
+        return $this->hasMany(HasResearch::class, 'id_card', 'citizen_id');
     }
 
     public function journals()
     {
-        return $this->hasMany(HasJournal::class, 'user_id', 'id');
+        return $this->hasMany(HasJournal::class, 'id_card', 'citizen_id');
     }
 
     public function books()
@@ -116,7 +114,7 @@ class User extends Authenticatable
 
     public function workexes()
     {
-        return $this->hasMany(Workex::class, 'user_id', 'id');
+        return $this->hasMany(Workex::class, 'id_card', 'citizen_id');
     }
 
     public function boardexes()
@@ -144,8 +142,29 @@ class User extends Authenticatable
     {
         return $this->belongsTo(SubDepartment::class, 'sub_dep_id', 'sub_dep_id');
     }
+
+    public function pushTokens()
+    {
+        return $this->hasMany(PushToken::class);
+    }
+
+    public function notificationSetting()
+    {
+        return $this->hasOne(NotificationSetting::class);
+    }
+
+    public function notifications()
+    {
+        return $this->hasMany(AppNotification::class);
+    }
+
     public function getDisplayPictureAttribute()
     {
         return $this->picture ?: $this->sso_picture;
+    }
+
+    public function isAdmin(): bool
+    {
+        return $this->role === 'admin';
     }
 }

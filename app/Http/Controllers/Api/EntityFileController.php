@@ -1,0 +1,10 @@
+<?php
+namespace App\Http\Controllers\Api;
+use App\Http\Controllers\Controller; use App\Models\{EntityFile,Proposal,Report,HasJournal}; use App\Support\ApiPagination; use Illuminate\Http\Request; use Illuminate\Support\Facades\Storage; use Illuminate\Support\Str;
+class EntityFileController extends Controller {
+ private function entity(Request $r,string $type,int $id){if($type==='proposal'){$m=Proposal::findOrFail($id);}elseif($type==='report'){$m=Report::findOrFail($id);}elseif($type==='journal'){$m=HasJournal::findOrFail($id);}else{abort(422,'Invalid entity_type');}$this->authorize('view',$m);return $m;}
+ public function index(Request $r){$v=$r->validate(['entity_type'=>'required|in:proposal,report,journal','entity_id'=>'required|integer','per_page'=>'sometimes|integer|min:1|max:100']);$this->entity($r,$v['entity_type'],$v['entity_id']);$p=EntityFile::where('entity_type',$v['entity_type'])->where('entity_id',$v['entity_id'])->latest()->paginate($v['per_page']??20);return ApiPagination::response($p,$p->items());}
+ public function store(Request $r){$v=$r->validate(['entity_type'=>'required|in:proposal,report,journal','entity_id'=>'required|integer','file'=>'required|file|max:10240|mimes:pdf,doc,docx,xls,xlsx,jpg,jpeg,png']);$entity=$this->entity($r,$v['entity_type'],$v['entity_id']);$file=$r->file('file');$name=Str::uuid().'.'.$file->extension();$path=$file->storeAs('entity-files/'.$v['entity_type'],$name,'private');$m=EntityFile::create(['owner_user_id'=>$r->user()->id,'entity_type'=>$v['entity_type'],'entity_id'=>$entity->getKey(),'original_name'=>$file->getClientOriginalName(),'stored_name'=>$name,'path'=>$path,'mime_type'=>$file->getMimeType(),'size'=>$file->getSize()]);return response()->json($m,201);}
+ public function download(Request $r,EntityFile $file){$this->authorize('view',$file);return Storage::disk('private')->download($file->path,$file->original_name);}
+ public function destroy(Request $r,EntityFile $file){$this->authorize('delete',$file);Storage::disk('private')->delete($file->path);$file->delete();return response()->json(['message'=>'ลบสำเร็จ']);}
+}

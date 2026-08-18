@@ -16,6 +16,24 @@ trait CreatesApplication
 
         $app->make(Kernel::class)->bootstrap();
 
+        if ($app->environment('testing') && config('database.default') === 'sqlite') {
+            $database = database_path('testing.sqlite');
+            if (! file_exists($database)) {
+                touch($database);
+            }
+
+            $sqlite = array_merge(config('database.connections.sqlite'), [
+                'database' => $database,
+            ]);
+
+            config([
+                'database.connections.sqlite' => $sqlite,
+                'database.connections.mysql' => $sqlite,
+                'database.connections.expert' => $sqlite,
+                'database.connections.lrd' => $sqlite,
+            ]);
+        }
+
         return $app;
     }
 }

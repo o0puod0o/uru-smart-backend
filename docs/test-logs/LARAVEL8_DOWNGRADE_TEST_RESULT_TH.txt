@@ -1,0 +1,64 @@
+Laravel 8 / PHP 7.4 Downgrade Test Result
+วันที่ทดสอบ: 2026-08-18
+Branch: php74-laravel8-downgrade
+
+สรุป:
+ทดลอง downgrade โปรเจกต์จริงจาก Laravel 10 เป็น Laravel 8 สำเร็จใน branch แยก
+โปรเจกต์ boot ได้ และ test ผ่านครบ
+
+Version หลัง downgrade:
+- PHP target จาก composer platform: 7.4.33
+- Laravel Framework: 8.83.29
+- Laravel Sanctum: 2.15.1
+- barryvdh/laravel-dompdf: 1.0.2
+- fruitcake/laravel-cors: 2.2.0
+- PHPUnit: 9.6.36
+
+ผลตรวจ Composer:
+composer why-not php 7.4.33
+ผลลัพธ์:
+ไม่มี package ที่ติด requirement เกิน PHP 7.4.33
+
+ผลทดสอบ:
+All tests:
+99 passed
+
+Localhost smoke test:
+- POST /api/auth/login: 200 OK, ได้ Sanctum token
+- GET /api/me: 200 OK
+- GET /api/profile-search?group_id=10: 200 OK, คืนรายการที่มี expertises.group_id = 10
+- POST /api/auth/logout: 200 OK
+
+สิ่งที่แก้เพื่อให้รองรับ Laravel 8/PHP 7.4:
+1. ปรับ composer.json จาก Laravel 10 เป็น Laravel 8
+2. Downgrade package ที่ require PHP 8+ เช่น Sanctum, DomPDF, PHPUnit, Collision
+3. แก้ config/app.php จาก Laravel 10 style เป็น Laravel 8 style
+4. แก้ config/logging.php ให้เข้ากับ Monolog 2
+5. แก้ PHP 8 syntax ที่ PHP 7.4 ใช้ไม่ได้ เช่น:
+   - match expression
+   - nullsafe operator (?->)
+   - constructor property promotion
+6. แก้ middleware signature ให้เข้ากับ Laravel 8
+7. แก้ test helper ที่มีเฉพาะ Laravel 10 เช่น fake() และ assertJsonIsArray()
+8. เพิ่ม fruitcake/laravel-cors สำหรับ CORS middleware ของ Laravel 8
+9. เอา temporary PHP mock route และ Laravel 8 mini-test route ออกจาก public/web.config แล้ว
+   ตอนนี้ /api/* จะเข้า Laravel controller จริง ไม่ใช่ mock shim
+
+ข้อควรระวังสำคัญ:
+Composer audit พบ security advisories 19 รายการ จาก package รุ่นเก่า
+โดยเฉพาะ dompdf/dompdf และ phenx/php-svg-lib
+
+Package abandoned:
+- fruitcake/laravel-cors
+- swiftmailer/swiftmailer
+
+ข้อสรุป:
+ถ้า server เปลี่ยน PHP เป็น 8.2 ไม่ได้จริง ๆ แนวทาง Laravel 8/PHP 7.4 สามารถทำให้ระบบรันได้
+แต่ต้องรับความเสี่ยงด้าน security ของ package เก่า โดยเฉพาะส่วน PDF
+
+คำแนะนำก่อน production:
+1. ถ้าใช้ PDF ต้องปิด remote resource / SVG risky input ให้เข้ม
+2. จำกัด input HTML ที่ส่งเข้า DomPDF
+3. หลีกเลี่ยงการให้ user upload SVG หรือ HTML เข้า PDF โดยตรง
+4. ทดสอบ deploy บน IIS PHP 7.4 จริงอีกครั้ง
+5. ถ้าเป็นไปได้ ยังแนะนำ PHP 8.2 + Laravel 10 มากกว่า

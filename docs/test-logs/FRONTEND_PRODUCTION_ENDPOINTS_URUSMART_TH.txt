@@ -1,0 +1,389 @@
+FRONTEND PRODUCTION ENDPOINTS - URUSMART
+วันที่จัดทำ: 2026-08-18
+
+BASE URL จริง:
+https://urusmart.uru.ac.th
+
+หมายเหตุสำคัญ:
+- API หลักของ mobile backend ใช้ Bearer token หลัง login
+- ตอนนี้ localhost/mock SSO flow ทดสอบผ่านแล้ว
+- ถ้าจะใช้ SSO จริงแบบ redirect ต้องมี route GET /auth/callback และต้องรู้ authorize/token/userinfo endpoint จริงของ SSO
+- redirectUri ที่อาจารย์ให้คือ https://urusmart.uru.ac.th/auth/callback
+
+============================================================
+1) HEALTH CHECK
+============================================================
+
+GET /
+
+Expected:
+{
+  "name": "Mobile Backend",
+  "status": "ok"
+}
+
+GET /api/ping
+
+Expected:
+{
+  "pong": true
+}
+
+============================================================
+2) AUTH / LOGIN สำหรับ MOBILE APP
+============================================================
+
+2.1 Login ผ่าน backend โดยใช้ email/password
+
+POST /api/auth/login
+Content-Type: application/json
+
+Body:
+{
+  "email": "u66046680121@live.uru.ac.th",
+  "password": "12345678"
+}
+
+Response สำเร็จ:
+{
+  "token": "{mobile_bearer_token}",
+  "user": {
+    "id": 4,
+    "code": "...",
+    "full_name_th": "...",
+    "full_name_en": "...",
+    "email": "...",
+    "faculty_name_th": "...",
+    "department_name_th": "...",
+    "picture": "..."
+  }
+}
+
+วิธีใช้ต่อ:
+ทุก endpoint ที่ต้อง login ให้ส่ง header:
+Authorization: Bearer {mobile_bearer_token}
+Accept: application/json
+
+------------------------------------------------------------
+
+2.2 Login โดย frontend มี SSO access_token แล้วเอามาแลก mobile token
+
+POST /api/auth/sso-token
+Content-Type: application/json
+
+Body:
+{
+  "access_token": "{sso_access_token}"
+}
+
+Response สำเร็จ:
+{
+  "token": "{mobile_bearer_token}",
+  "user": {
+    "id": 4,
+    "code": "...",
+    "full_name_th": "...",
+    "full_name_en": "...",
+    "email": "...",
+    "faculty_name_th": "...",
+    "department_name_th": "...",
+    "picture": "..."
+  }
+}
+
+------------------------------------------------------------
+
+2.3 Logout
+
+POST /api/auth/logout
+Authorization: Bearer {mobile_bearer_token}
+
+Response:
+{
+  "message": "Logged out successfully"
+}
+
+============================================================
+3) SSO จริงแบบ REDIRECT CALLBACK
+============================================================
+
+ค่าที่อาจารย์ให้:
+clientId = urusmart
+clientSecret = state
+redirectUri = https://urusmart.uru.ac.th/auth/callback
+
+Flow ที่ควรเป็น:
+1. Frontend เปิดหน้า SSO จริง
+2. User login ด้วย email @live.uru.ac.th
+3. SSO redirect กลับมาที่:
+   GET https://urusmart.uru.ac.th/auth/callback?code=...&state=...
+4. Backend เอา code ไปแลก token กับ SSO
+5. Backend ดึง userinfo จาก SSO
+6. Backend เอาเลขบัตรประชาชนไปดึง profile จาก expert
+7. Backend sync user เข้า database กลาง
+8. Backend redirect/ส่ง mobile token กลับให้ frontend
+
+สถานะปัจจุบัน:
+- API token flow พร้อมแล้ว
+- ยังต้องเพิ่ม/ยืนยัน route GET /auth/callback ก่อนใช้ redirect flow จริง
+- ยังต้องรู้ SSO authorize URL, token URL, userinfo URL จริง
+
+============================================================
+4) USER PROFILE
+============================================================
+
+GET /api/me
+Authorization: Bearer {mobile_bearer_token}
+
+ใช้ดึง profile ของ user ที่ login อยู่
+
+PUT /api/me
+Authorization: Bearer {mobile_bearer_token}
+Content-Type: application/json
+
+ใช้แก้ไขเฉพาะข้อมูลที่ mobile app เป็นเจ้าของ เช่น phone, line, facebook, website, bio, address ฯลฯ
+ไม่ควรแก้ข้อมูล master จาก SSO/expert เช่น เลขบัตร, ชื่อ, นามสกุล
+
+POST /api/me/photo
+Authorization: Bearer {mobile_bearer_token}
+Content-Type: multipart/form-data
+
+ใช้ upload รูป profile ฝั่ง mobile app
+
+DELETE /api/me/photo
+Authorization: Bearer {mobile_bearer_token}
+
+ลบรูป profile ฝั่ง mobile app
+
+GET /api/me/external-profile
+Authorization: Bearer {mobile_bearer_token}
+
+ดึงข้อมูล profile จาก expert/external profile ตาม token user
+
+============================================================
+5) PROFILE SEARCH
+============================================================
+
+GET /api/profile-search
+Authorization: Bearer {mobile_bearer_token}
+
+Filter ที่รองรับ:
+GET /api/profile-search?expertise_group_id=6
+GET /api/profile-search?group_id=6
+GET /api/profile-search?expertise=วิศวกรรมศาสตร์
+
+Response แต่ละรายการมี expertises:
+{
+  "id": 4,
+  "full_name_th": "...",
+  "expertises": [
+    {
+      "id": 1,
+      "group_id": 6,
+      "name": "วิศวกรรมศาสตร์"
+    }
+  ]
+}
+
+============================================================
+6) EXPERT2 MODULE - ข้อมูลใน mobile app / expert profile
+============================================================
+
+ต้องใช้ Authorization: Bearer {mobile_bearer_token}
+
+GET    /api/expertises
+POST   /api/expertises
+DELETE /api/expertises/{id}
+
+GET    /api/interests
+POST   /api/interests
+PUT    /api/interests/{id}
+DELETE /api/interests/{id}
+
+GET    /api/educations
+POST   /api/educations
+PUT    /api/educations/{id}
+DELETE /api/educations/{id}
+
+GET    /api/workexes
+POST   /api/workexes
+PUT    /api/workexes/{id}
+DELETE /api/workexes/{id}
+
+GET    /api/boardexes
+POST   /api/boardexes
+PUT    /api/boardexes/{id}
+DELETE /api/boardexes/{id}
+
+GET    /api/researches
+POST   /api/researches
+PUT    /api/researches/{id}
+DELETE /api/researches/{id}
+
+GET    /api/journals
+POST   /api/journals
+PUT    /api/journals/{id}
+DELETE /api/journals/{id}
+
+GET    /api/books
+POST   /api/books
+PUT    /api/books/{id}
+DELETE /api/books/{id}
+
+GET    /api/patents
+POST   /api/patents
+PUT    /api/patents/{id}
+DELETE /api/patents/{id}
+
+GET    /api/awards
+POST   /api/awards
+PUT    /api/awards/{id}
+DELETE /api/awards/{id}
+
+GET    /api/academics
+POST   /api/academics
+PUT    /api/academics/{id}
+DELETE /api/academics/{id}
+
+GET    /api/trainings
+POST   /api/trainings
+PUT    /api/trainings/{id}
+DELETE /api/trainings/{id}
+
+GET    /api/lecturers
+POST   /api/lecturers
+PUT    /api/lecturers/{id}
+DELETE /api/lecturers/{id}
+
+GET    /api/proceedings
+POST   /api/proceedings
+PUT    /api/proceedings/{id}
+DELETE /api/proceedings/{id}
+
+GET    /api/hsps
+POST   /api/hsps
+PUT    /api/hsps/{id}
+DELETE /api/hsps/{id}
+
+============================================================
+7) LRDSYSTEM2 MODULE - ระบบงานวิจัย
+============================================================
+
+ต้องใช้ Authorization: Bearer {mobile_bearer_token}
+
+Reference:
+GET /api/lrd/facultys
+GET /api/lrd/branchs
+GET /api/lrd/paperindexs
+
+Education:
+GET    /api/lrd/educations
+POST   /api/lrd/educations
+GET    /api/lrd/educations/{id}
+PUT    /api/lrd/educations/{id}
+DELETE /api/lrd/educations/{id}
+
+Papers:
+GET    /api/lrd/papers
+POST   /api/lrd/papers
+GET    /api/lrd/papers/{id}
+PUT    /api/lrd/papers/{id}
+DELETE /api/lrd/papers/{id}
+
+Projects:
+GET    /api/lrd/projects
+POST   /api/lrd/projects
+GET    /api/lrd/projects/{id}
+PUT    /api/lrd/projects/{id}
+DELETE /api/lrd/projects/{id}
+
+Researchs:
+GET    /api/lrd/researchs
+POST   /api/lrd/researchs
+GET    /api/lrd/researchs/{id}
+PUT    /api/lrd/researchs/{id}
+DELETE /api/lrd/researchs/{id}
+
+Proposals:
+GET    /api/lrd/proposals
+POST   /api/lrd/proposals
+GET    /api/lrd/proposals/{id}
+PUT    /api/lrd/proposals/{id}
+DELETE /api/lrd/proposals/{id}
+
+หลักสิทธิ์:
+- อ่านข้อมูลรายการได้ตาม endpoint ที่เปิด
+- การแก้ไข/ลบ ต้องเป็นเจ้าของข้อมูล หรือ admin ตาม logic backend
+- ตาราง user read-only: SSO user, expert2.users, lrdsystem2.users, lrdsystem2.researchers
+
+============================================================
+8) MOCK SSO สำหรับทดสอบช่วงแรก
+============================================================
+
+เปิดใช้เมื่อ SSO_MOCK_ROUTES=true
+
+POST /api/mock-sso/oauth/token
+Body:
+{
+  "username": "phanuwat@live.uru.ac.th",
+  "password": "password"
+}
+
+GET /api/mock-sso/api/userinfo
+Header:
+Authorization: Bearer {mock_sso_access_token}
+
+GET /api/mock-sso/experts/3530900177802?token=mock-expert-api-token
+
+หมายเหตุ:
+- Production จริงไม่ควรเปิด mock routes เป็น public ถ้าเริ่มใช้ SSO จริงเต็มรูปแบบแล้ว
+- ถ้ายังต้องใช้ mock ชั่วคราวตอน deploy แรก ให้จำกัดช่วงเวลาใช้งานและอย่าใช้รหัสจริงของ user
+
+============================================================
+9) CURL ตัวอย่างสำหรับ frontend/dev
+============================================================
+
+Health:
+curl https://urusmart.uru.ac.th/
+
+Login:
+curl -X POST https://urusmart.uru.ac.th/api/auth/login \
+  -H "Accept: application/json" \
+  -H "Content-Type: application/json" \
+  -d "{\"email\":\"u66046680121@live.uru.ac.th\",\"password\":\"12345678\"}"
+
+Me:
+curl https://urusmart.uru.ac.th/api/me \
+  -H "Accept: application/json" \
+  -H "Authorization: Bearer {mobile_bearer_token}"
+
+Profile Search:
+curl "https://urusmart.uru.ac.th/api/profile-search?group_id=6" \
+  -H "Accept: application/json" \
+  -H "Authorization: Bearer {mobile_bearer_token}"
+
+Logout:
+curl -X POST https://urusmart.uru.ac.th/api/auth/logout \
+  -H "Accept: application/json" \
+  -H "Authorization: Bearer {mobile_bearer_token}"
+
+============================================================
+10) สรุปความพร้อมก่อน deploy จริง
+============================================================
+
+พร้อม deploy สำหรับ:
+- health check
+- API login/token แบบ mock/current flow
+- mobile token
+- profile
+- profile-search
+- expert2 CRUD
+- lrdsystem2 CRUD
+
+ยังต้องยืนยัน/เพิ่มก่อนใช้ SSO redirect จริง:
+- GET /auth/callback
+- SSO authorize URL
+- SSO token URL
+- SSO userinfo URL
+- รูปแบบ callback response ว่าได้ code หรือ access_token กลับมา
+

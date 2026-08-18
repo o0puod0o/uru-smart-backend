@@ -1,0 +1,231 @@
+URU SMART - MOCK SSO LOGIN + USER SYNC TEST RESPONSE
+====================================================
+
+Test Date:
+2026-08-11
+
+Local Base URL:
+http://localhost:8001
+
+
+1) Purpose
+----------
+
+ทดสอบ flow แบบใกล้เคียง production:
+
+1. Frontend เรียก /api/auth/login
+2. Backend ไม่ได้ตรวจ password จาก expert2 โดยตรง
+3. Backend เรียก Mock SSO ที่จำลองเป็นระบบ SSO ภายนอก
+4. Mock SSO คืน access_token และ user profile
+5. Backend sync user profile เข้า table users ของระบบเรา
+6. Backend ออก Sanctum token ให้ frontend
+7. Frontend ใช้ Sanctum token เรียก /api/me/external-profile
+8. Backend ใช้ข้อมูล user ที่ sync แล้ว ไปดึงข้อมูลจาก expert2 และ lrdsystem2
+
+
+2) Mock SSO Endpoints
+---------------------
+
+Mock SSO ถูกสร้างไว้เป็น endpoint จำลอง:
+
+POST /api/mock-sso/oauth/token
+GET  /api/mock-sso/api/userinfo
+
+ใน local .env ตั้งค่า:
+
+SSO_MOCK=false
+SSO_LOCAL_DATABASE=false
+SSO_BASE_URL=http://nginx/api/mock-sso
+
+ความหมาย:
+
+- ไม่ใช้ mock แบบ hardcoded ใน SSOService
+- ไม่ใช้ expert2.users เป็นตัว login
+- ให้ SSOService เรียก HTTP ไปหา Mock SSO เหมือนเป็น external SSO server
+
+
+3) Mock SSO Direct Test
+-----------------------
+
+Request:
+
+POST http://localhost:8001/api/mock-sso/oauth/token
+
+Body:
+
+{
+    "username": "3530900177802",
+    "password": "password"
+}
+
+Response:
+
+{
+    "token_type": "Bearer",
+    "expires_in": 3600,
+    "access_token": "external-mock-sso-token.900304..."
+}
+
+
+Request:
+
+GET http://localhost:8001/api/mock-sso/api/userinfo
+
+Header:
+
+Authorization: Bearer external-mock-sso-token.900304...
+Accept: application/json
+
+Response:
+
+{
+    "mock_sso_userinfo_status": "200",
+    "sso_id": 900304,
+    "username": "3530900177802",
+    "citizen_id": "3530900177802",
+    "email": "mr.phanuwat@gmail.com"
+}
+
+
+4) Backend Login Test Through /api/auth/login
+---------------------------------------------
+
+Request:
+
+POST http://localhost:8001/api/auth/login
+
+Body:
+
+{
+    "email": "3530900177802",
+    "password": "password"
+}
+
+Response Summary:
+
+{
+    "login_status": "200",
+    "app_token_sample": "59|yAthSOh8sNGlMH7...",
+    "app_user_id": 4,
+    "app_user_email": "mr.phanuwat@gmail.com"
+}
+
+ความหมาย:
+
+- Frontend ยังเรียก /api/auth/login เหมือนเดิม
+- Backend ไป login กับ Mock SSO สำเร็จ
+- Backend ออก Sanctum token ของระบบเราให้ frontend สำเร็จ
+
+
+5) users Table Sync Result
+--------------------------
+
+Before login/sync:
+
+{
+    "id": 4,
+    "sso_id": 304,
+    "username": "3530900177802",
+    "citizen_id": "3530900177802",
+    "updated_at": "2026-08-11 06:06:05"
+}
+
+After login/sync:
+
+{
+    "exists": true,
+    "id": 4,
+    "sso_id": 900304,
+    "username": "3530900177802",
+    "citizen_id": "3530900177802",
+    "email": "mr.phanuwat@gmail.com",
+    "created_at": "2026-08-11 06:06:05",
+    "updated_at": "2026-08-11 06:50:13"
+}
+
+ความหมาย:
+
+- มีข้อมูล user อยู่ใน table users จริง
+- หลัง login จาก Mock SSO แล้วระบบ sync ข้อมูลกลับเข้า users จริง
+- sso_id ถูก update จาก 304 เป็น 900304
+- updated_at เปลี่ยนจาก 2026-08-11 06:06:05 เป็น 2026-08-11 06:50:13
+- แปลว่าไม่ได้แค่ login สำเร็จ แต่มีการเขียน/update ข้อมูลลง database จริง
+
+
+6) External Profile After Login
+-------------------------------
+
+หลังจาก login แล้ว frontend ใช้ Sanctum token เรียก:
+
+GET /api/me/external-profile
+
+Response Summary:
+
+{
+    "external_profile_status": "200",
+    "expert_users_id": 304,
+    "expert_id_card": "3530900177802",
+    "lrd_researcher_id": 881,
+    "lrd_codeuser": "3530900177802",
+    "lrd_projects_count": 5
+}
+
+ความหมาย:
+
+- token ที่ได้จาก /api/auth/login ใช้เรียก protected API ได้จริง
+- backend ใช้ข้อมูล user ที่ sync จาก SSO ไปหา profile ใน expert2 ได้จริง
+- backend ใช้ citizen_id/username ไป match กับ lrdsystem2 ได้จริง
+- ดึง project จาก lrdsystem2 ได้ 5 records
+
+
+7) Real Flow Explanation
+------------------------
+
+Production-like architecture:
+
+Frontend
+  -> POST /api/auth/login
+  -> Backend Laravel
+  -> External SSO หรือ Mock SSO
+  -> ได้ SSO access_token
+  -> Backend เรียก userinfo จาก SSO
+  -> Backend sync ข้อมูลเข้า users table
+  -> Backend ออก Sanctum token
+  -> Frontend ใช้ Sanctum token เรียก API
+  -> Backend ดึงข้อมูลจาก expert2 และ lrdsystem2
+
+
+8) Important Conclusion
+-----------------------
+
+การทดสอบนี้ยืนยันว่า:
+
+1. SSO สามารถแยกออกจาก expert2 ได้
+2. expert2 ไม่จำเป็นต้องเป็นตัวตรวจ login
+3. หลัง login จาก SSO แล้ว backend สามารถ sync ข้อมูลเข้า users table ได้จริง
+4. token ที่ backend ออกให้ frontend สามารถใช้เรียก protected API ได้จริง
+5. backend สามารถใช้ข้อมูลหลัง login ไปดึงข้อมูลจาก expert2 และ lrdsystem2 ได้จริง
+
+ดังนั้น flow ที่เหมาะสมกับระบบจริงคือ:
+
+SSO ภายนอก = ใช้ยืนยันตัวตน
+users table ของระบบเรา = เก็บข้อมูล user หลัง login / sync profile
+expert2 = ใช้เป็นฐานข้อมูล profile/portfolio/mapping เพิ่มเติม
+lrdsystem2 = ใช้เป็นฐานข้อมูลโครงการ/งานวิจัยเพิ่มเติม
+
+
+9) Files Added / Updated
+------------------------
+
+Added:
+
+app/Http/Controllers/MockSsoController.php
+
+Updated:
+
+app/Services/SSOService.php
+app/Services/SSOUserSynchronizer.php
+config/sso.php
+routes/api.php
+.env
+

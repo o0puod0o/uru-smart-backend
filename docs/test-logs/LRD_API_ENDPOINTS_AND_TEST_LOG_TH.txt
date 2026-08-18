@@ -1,0 +1,217 @@
+LRD API Endpoints and Test Log
+==============================
+
+วันที่: 14 สิงหาคม 2026
+
+
+1) หลักการใช้งานหลัง Login
+--------------------------
+
+หลังจาก login แล้ว frontend ต้องส่ง token ทุกครั้ง:
+
+Authorization: Bearer <token>
+Accept: application/json
+
+backend จะใช้ token เพื่อรู้ว่า user คือใคร
+จากนั้น map ไปหา lrdsystem2.researchers แบบ read-only เพื่อหา researcher_id
+
+frontend ไม่ต้องส่ง researcher_id เอง
+
+
+2) ตาราง Read-only
+------------------
+
+ตาราง user/master identity อ่านอย่างเดียว:
+
+- SSO user
+- expert2.users
+- lrdsystem2.users
+- lrdsystem2.researchers
+
+
+3) Rule การอ่าน/เขียนข้อมูล LRD
+-------------------------------
+
+Read:
+
+- อ่านงานตัวเองได้
+- อ่านงานคนอื่นได้
+- ใช้ scope=mine หรือ scope=all ได้
+- ใช้ researcher_id เพื่อดูงานของนักวิจัยคนใดคนหนึ่งได้
+
+Write:
+
+- สร้าง/แก้ไข/ลบ ได้เฉพาะ record ของตัวเอง
+- backend เช็คจาก researcher_id ที่ map จาก token
+- ถ้า record ไม่ใช่ของตัวเอง จะไม่สามารถ update/delete ได้
+
+
+4) Reference / Dropdown Endpoints
+---------------------------------
+
+GET /api/lrd/facultys
+
+ใช้ดึงรายการคณะ
+
+GET /api/lrd/branchs
+
+ใช้ดึงรายการสาขา
+
+Query optional:
+
+faculty_id=3
+
+GET /api/lrd/paperindexs
+
+ใช้ดึงรายการ index/type ของ paper
+
+
+5) CRUD Endpoints
+-----------------
+
+LRD Educations:
+
+GET    /api/lrd/educations
+POST   /api/lrd/educations
+GET    /api/lrd/educations/{id}
+PUT    /api/lrd/educations/{id}
+DELETE /api/lrd/educations/{id}
+
+
+LRD Papers:
+
+GET    /api/lrd/papers
+POST   /api/lrd/papers
+GET    /api/lrd/papers/{id}
+PUT    /api/lrd/papers/{id}
+DELETE /api/lrd/papers/{id}
+
+
+LRD Projects:
+
+GET    /api/lrd/projects
+POST   /api/lrd/projects
+GET    /api/lrd/projects/{id}
+PUT    /api/lrd/projects/{id}
+DELETE /api/lrd/projects/{id}
+
+
+LRD Researchs:
+
+GET    /api/lrd/researchs
+POST   /api/lrd/researchs
+GET    /api/lrd/researchs/{id}
+PUT    /api/lrd/researchs/{id}
+DELETE /api/lrd/researchs/{id}
+
+
+LRD Proposals:
+
+GET    /api/lrd/proposals
+POST   /api/lrd/proposals
+GET    /api/lrd/proposals/{id}
+PUT    /api/lrd/proposals/{id}
+DELETE /api/lrd/proposals/{id}
+
+
+6) Query Parameters สำหรับ List
+-------------------------------
+
+ใช้ได้กับ CRUD list endpoints:
+
+scope=mine
+scope=all
+researcher_id=881
+q=keyword
+page=1
+per_page=20
+
+ตัวอย่าง:
+
+GET /api/lrd/papers?scope=all&per_page=5
+
+GET /api/lrd/researchs?researcher_id=881
+
+GET /api/lrd/projects?q=สุขภาวะ
+
+
+7) ตัวอย่าง Request: สร้าง Paper
+--------------------------------
+
+POST /api/lrd/papers
+
+{
+    "title_th": "ชื่อบทความ",
+    "paperindex_id": "1",
+    "publicyear": 2570,
+    "keyword": "database,research",
+    "source": "วารสารตัวอย่าง"
+}
+
+backend จะเติม researcher_id ให้เองจาก token
+
+
+8) Test Result ล่าสุด
+---------------------
+
+ทดสอบ login + reference endpoints + read all + CRUD paper
+
+{
+    "login_status": "200",
+    "user_id": 4,
+    "facultys_count": 14,
+    "branchs_faculty_3_count": 10,
+    "paperindexs_count": 5,
+    "papers_mine_total": 1,
+    "papers_all_total": 122,
+    "create_status": "201",
+    "created_id": 129,
+    "created_researcher_id": 881,
+    "db_created": "129|881|TEST-LRD-PAPER-CODEX-20260814143527|2570",
+    "update_status": "200",
+    "updated_title": "TEST-LRD-PAPER-CODEX-UPDATED-20260814143527",
+    "db_updated": "129|881|TEST-LRD-PAPER-CODEX-UPDATED-20260814143527|2571",
+    "show_status": "200",
+    "show_title": "TEST-LRD-PAPER-CODEX-UPDATED-20260814143527",
+    "delete_status": "200",
+    "delete_message": "ลบสำเร็จ",
+    "db_after_delete_count": 0
+}
+
+
+9) สรุป Test
+------------
+
+PASS:
+
+- login ผ่าน token ได้
+- reference endpoints อ่านได้
+- papers?scope=mine อ่านของตัวเองได้
+- papers?scope=all อ่านของทุกคนได้
+- create paper เขียนเข้า lrdsystem2.papers ได้
+- update paper แก้ record ของตัวเองได้
+- show paper อ่านรายละเอียดได้
+- delete paper ลบ record ของตัวเองได้
+- record test ถูกลบแล้ว ไม่ค้างใน database
+
+
+10) สรุปหลักการสำหรับ frontend
+------------------------------
+
+หลัง login ทุก module ใช้ token เดียวกัน
+
+frontend เรียก:
+
+GET /api/lrd/papers?scope=all
+
+เพื่ออ่าน paper ทุกคน
+
+frontend เรียก:
+
+POST /api/lrd/papers
+
+เพื่อเพิ่ม paper ของตัวเอง
+
+frontend ไม่ต้องส่ง researcher_id
+backend จะใส่ researcher_id ให้เองจาก user ที่ login
+

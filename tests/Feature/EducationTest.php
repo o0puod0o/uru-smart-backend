@@ -12,10 +12,17 @@ class EducationTest extends TestCase
 {
     use RefreshDatabase;
 
-    private function makeEducation(int $userId): Education
+    private function makeUser(array $attrs = []): User
+    {
+        return User::factory()->create(array_merge([
+            'citizen_id' => sprintf('%013d', random_int(1000000000000, 9999999999999)),
+        ], $attrs));
+    }
+
+    private function makeEducation(string $idCard): Education
     {
         return Education::create([
-            'user_id'    => $userId,
+            'id_card'    => $idCard,
             'degree'     => 1,
             'course'     => 'Computer Science',
             'university' => 'MIT',
@@ -29,36 +36,36 @@ class EducationTest extends TestCase
         $this->getJson('/api/educations')->assertUnauthorized();
     }
 
-    public function test_store_creates_education(): void
+    public function test_store_creates_education_using_logged_in_users_id_card(): void
     {
-        $user = User::factory()->create();
+        $user = $this->makeUser();
         Sanctum::actingAs($user);
 
         $this->postJson('/api/educations', [
             'degree'     => 1,
-            'course'     => 'วิทยาการคอมพิวเตอร์',
-            'university' => 'มหาวิทยาลัยเทคโนโลยี',
+            'course'     => 'Computer Science',
+            'university' => 'Tech University',
             'year'       => '2022',
         ])->assertCreated();
 
-        $this->assertDatabaseHas('educations', [
-            'user_id' => $user->id,
-            'course'  => 'วิทยาการคอมพิวเตอร์',
-        ]);
+        $this->assertDatabaseHas('education', [
+            'id_card' => $user->citizen_id,
+            'course'  => 'Computer Science',
+        ], 'expert');
     }
 
     public function test_store_validates_required_fields(): void
     {
-        Sanctum::actingAs(User::factory()->create());
+        Sanctum::actingAs($this->makeUser());
 
         $this->postJson('/api/educations', [])->assertUnprocessable();
     }
 
     public function test_show_returns_404_for_other_users_education(): void
     {
-        $user  = User::factory()->create();
-        $other = User::factory()->create();
-        $edu   = $this->makeEducation($other->id);
+        $user  = $this->makeUser();
+        $other = $this->makeUser();
+        $edu   = $this->makeEducation($other->citizen_id);
 
         Sanctum::actingAs($user);
 
@@ -67,8 +74,8 @@ class EducationTest extends TestCase
 
     public function test_update_education(): void
     {
-        $user = User::factory()->create();
-        $edu  = $this->makeEducation($user->id);
+        $user = $this->makeUser();
+        $edu  = $this->makeEducation($user->citizen_id);
 
         Sanctum::actingAs($user);
 
@@ -79,21 +86,21 @@ class EducationTest extends TestCase
             'year'       => '2023',
         ])->assertOk();
 
-        $this->assertDatabaseHas('educations', [
+        $this->assertDatabaseHas('education', [
             'id'     => $edu->id,
             'course' => 'Updated Course',
-        ]);
+        ], 'expert');
     }
 
     public function test_destroy_education(): void
     {
-        $user = User::factory()->create();
-        $edu  = $this->makeEducation($user->id);
+        $user = $this->makeUser();
+        $edu  = $this->makeEducation($user->citizen_id);
 
         Sanctum::actingAs($user);
 
         $this->deleteJson("/api/educations/{$edu->id}")->assertOk();
 
-        $this->assertDatabaseMissing('educations', ['id' => $edu->id]);
+        $this->assertDatabaseMissing('education', ['id' => $edu->id], 'expert');
     }
 }

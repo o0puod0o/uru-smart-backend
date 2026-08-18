@@ -1,0 +1,304 @@
+Endpoint Comparison: เดิม vs ใหม่ LRD
+====================================
+
+วันที่ทดสอบ: 14 สิงหาคม 2026
+
+
+1) สรุปสั้น ๆ
+-------------
+
+endpoint เดิมกับ endpoint ใหม่ต่างกันพอสมควร เพราะข้อมูลมาจากคนละ database และคนละ schema
+
+endpoint เดิม:
+
+- /api/educations
+- /api/researches
+- /api/me/external-profile
+
+ใช้ข้อมูลจาก expert2 หรือข้อมูลรวม
+
+endpoint ใหม่:
+
+- /api/lrd/researchs
+- /api/lrd/papers
+- /api/lrd/projects
+- /api/lrd/educations
+- /api/lrd/proposals
+- /api/lrd/facultys
+- /api/lrd/branchs
+- /api/lrd/paperindexs
+
+ใช้ข้อมูลจาก lrdsystem2 โดยตรง
+
+
+2) ผลทดสอบ Endpoint เดิม
+------------------------
+
+Login:
+
+{
+    "login_status": "200",
+    "token_user_id": 4
+}
+
+
+GET /api/educations?per_page=3
+
+Result:
+
+{
+    "status": "200",
+    "total": 2,
+    "first_keys": "id,id_card,degree,course,university,year,dateAdd",
+    "first_owner_field": "3530900177802",
+    "first_title": "วศ.ม.วิศวกรรมคอมพิวเตอร์"
+}
+
+หมายความว่า:
+
+- endpoint นี้ใช้ expert2.education
+- owner key คือ id_card
+- response field เป็นรูปแบบ expert2
+
+
+GET /api/researches?per_page=3
+
+Result:
+
+{
+    "status": "200",
+    "total": 12,
+    "first_keys": "id,id_card,name,year,research_type_id,research_PMU_type_id,research_level_id,dateAdd",
+    "first_owner_field": "3530900177802",
+    "first_title": "การจัดการศูนย์ข้อมูลเพื่อการพัฒนาเชิงพื้นที่สำหรับเครือข่ายมหาวิทยาลัยราชภัฏอุตรดิตถ์"
+}
+
+หมายความว่า:
+
+- endpoint นี้ใช้ expert2.has_research
+- owner key คือ id_card
+- field ชื่องานวิจัยคือ name
+
+
+GET /api/me/external-profile
+
+Result:
+
+{
+    "status": "200",
+    "expert_research_count": 10,
+    "lrd_researchs_count": 4,
+    "lrd_projects_count": 5
+}
+
+หมายความว่า:
+
+- endpoint นี้เป็น endpoint รวมข้อมูล
+- อ่านจาก expert2 และ lrdsystem2 พร้อมกัน
+- เหมาะกับหน้า profile/dashboard ที่ต้องการข้อมูลรวม
+
+
+3) ผลทดสอบ Endpoint ใหม่ LRD
+----------------------------
+
+GET /api/lrd/researchs?per_page=3
+
+Result:
+
+{
+    "status": "200",
+    "total": 4,
+    "first_owner_field": 881,
+    "first_title": "การพัฒนาระบบและกลไกการจัดการนวัตกรรมองค์ความรู้ในการขับเคลื่อนงานสุขภาวะภาคเหนือตอนบน ภายใต้งานเชิงประเด็น ในมิติอากาศสะอาด มิติความมั่นคงทางอาหาร มิติระบบรองรับสังคมสูงวัย"
+}
+
+หมายความว่า:
+
+- default scope คือ mine
+- อ่านเฉพาะงานของ researcher ที่ login
+- owner key คือ researcher_id
+- field ชื่องานวิจัยคือ title_th
+
+
+GET /api/lrd/researchs?scope=all&per_page=3
+
+Result:
+
+{
+    "status": "200",
+    "total": 1509,
+    "first_owner_field": 1259,
+    "first_title": "การศึกษาปัจจัยที่มีอิทธิพลต่อการจัดการโซ่อุปทาน เกษตรต้นน้ำที่เป็นมิตรต่อสิ่งเเวดล้อม"
+}
+
+หมายความว่า:
+
+- อ่านงานวิจัยของทุกคนได้
+- ใช้สำหรับหน้า search/list รวม
+- แต่ยังแก้ไขได้เฉพาะงานของตัวเองเท่านั้น
+
+
+GET /api/lrd/papers?per_page=3
+
+Result:
+
+{
+    "status": "200",
+    "total": 1,
+    "first_owner_field": 881,
+    "first_title": "การพัฒนาระบบฐานข้อมูลเกษตรกรในกลไกตลาดทุเรียนหลงลับแลจังหวัดอุตรดิตถ์"
+}
+
+หมายความว่า:
+
+- default scope คือ mine
+- อ่าน paper ของ researcher ที่ login
+
+
+GET /api/lrd/papers?scope=all&per_page=3
+
+Result:
+
+{
+    "status": "200",
+    "total": 122,
+    "first_owner_field": 1440,
+    "first_title": "ความสัมพันธ์ระหว่างการรับรู้และพฤติกรรมการดูแลสุขภาพในการป้องกันการเกิดโรคไตเรื้อรังของผู้ป่วยความดันโลหิตสูง ตำบลป่าเซ่า อำเภอเมือง จังหวัดอุตรดิตถ์"
+}
+
+หมายความว่า:
+
+- อ่าน paper ของทุกคนได้
+- แต่ update/delete ได้เฉพาะ paper ของตัวเอง
+
+
+GET /api/lrd/facultys
+
+Result:
+
+{
+    "facultys_count": 14
+}
+
+
+GET /api/lrd/branchs?faculty_id=3
+
+Result:
+
+{
+    "branchs_faculty_3_count": 10
+}
+
+
+4) ทดสอบ Owner Protection
+-------------------------
+
+ทดสอบ user ปัจจุบัน:
+
+current_user_researcher_id = 881
+
+เลือก paper ของคนอื่น:
+
+{
+    "other_paper_id": 128,
+    "other_researcher_id": 1440
+}
+
+ลอง update paper ของคนอื่น:
+
+PUT /api/lrd/papers/128
+
+Result:
+
+{
+    "update_other_status": 404
+}
+
+ลอง delete paper ของคนอื่น:
+
+DELETE /api/lrd/papers/128
+
+Result:
+
+{
+    "delete_other_status": 404
+}
+
+หมายความว่า:
+
+- อ่าน paper ของคนอื่นได้
+- แต่แก้/ลบของคนอื่นไม่ได้
+- ได้ 404 เพราะ backend query เฉพาะ record ที่ researcher_id ตรงกับ user login
+- วิธีนี้ปลอดภัย เพราะไม่เปิดเผยว่า record มีอยู่จริงหรือไม่
+
+
+5) ตารางเปรียบเทียบ
+-------------------
+
+| เรื่อง | Endpoint เดิม | Endpoint ใหม่ LRD |
+|---|---|---|
+| Database | expert2 / ข้อมูลรวม | lrdsystem2 |
+| Owner key | id_card | researcher_id |
+| ชื่อ field title | name / course | title_th / projectname |
+| อ่านของคนอื่น | ผ่าน external-profile บางส่วน | scope=all |
+| แก้ของคนอื่น | ไม่ได้ | ไม่ได้ |
+| สร้างข้อมูล | ใช้ id_card จาก token | ใช้ researcher_id จาก token |
+| เหมาะกับหน้า | profile/expert portfolio | research module / paper / project |
+
+
+6) ต่างกันเยอะไหม
+-----------------
+
+ต่างกันระดับกลางถึงเยอะในเชิง response shape
+
+เพราะ:
+
+1. endpoint เดิมใช้ expert2
+   - owner คือ id_card
+   - field เช่น name, course, university
+
+2. endpoint ใหม่ใช้ lrdsystem2
+   - owner คือ researcher_id
+   - field เช่น title_th, title_eng, projectname, publicyear
+
+แต่ frontend ไม่ต้องเปลี่ยนเรื่อง auth/token
+
+เหมือนเดิม:
+
+Authorization: Bearer <token>
+
+ต่างหลัก ๆ คือ:
+
+- URL endpoint
+- field ใน response
+- query params scope=mine/all
+
+
+7) ผลกระทบต่อ Frontend
+----------------------
+
+สิ่งที่ใช้เหมือนเดิม:
+
+- login
+- token
+- header Authorization
+- pagination shape โดยรวม
+
+สิ่งที่ต้องเพิ่ม/แก้:
+
+- เพิ่ม API service สำหรับ /api/lrd/*
+- mapping field ใหม่ เช่น title_th แทน name
+- เพิ่ม scope=all สำหรับหน้า list/search รวม
+- ปุ่ม edit/delete ควรแสดงเฉพาะ item ที่ researcher_id ตรงกับ user ปัจจุบัน
+
+
+8) สรุปสุดท้าย
+--------------
+
+endpoint เดิมยังใช้กับข้อมูล expert/profile ได้
+
+endpoint ใหม่ /api/lrd/* ใช้กับ module งานวิจัยฝั่ง lrdsystem2
+
+อ่านงานคนอื่นได้ผ่าน scope=all
+แต่แก้/ลบได้เฉพาะงานที่ researcher_id ตรงกับ user ที่ login เท่านั้น
+

@@ -1,0 +1,312 @@
+CRUD Rules and Test Log
+=======================
+
+วันที่ทดสอบ: 13 สิงหาคม 2026
+ระบบ: Laravel Backend + Multiple Database
+
+
+1) กติกาการใช้งาน Database
+---------------------------
+
+ตาราง user/master identity อ่านอย่างเดียว:
+
+- SSO user
+- expert2.users
+- lrdsystem2.users
+- lrdsystem2.researchers
+
+ตารางข้อมูลอื่นสามารถ CRUD ได้:
+
+- expert2.education
+- expert2.has_interest
+- expert2.has_research
+- expert2.has_journal
+- expert2.workex
+- lrdsystem2.projects
+- lrdsystem2.researchs
+- lrdsystem2.proposals
+
+
+2) Endpoint ที่ปรับให้ใช้ expert2
+---------------------------------
+
+GET/POST/PUT/DELETE /api/educations
+-> expert2.education
+
+GET/POST/PUT/DELETE /api/interests
+-> expert2.has_interest
+
+GET/POST/PUT/DELETE /api/researches
+-> expert2.has_research
+
+GET/POST/PUT/DELETE /api/journals
+-> expert2.has_journal
+
+GET/POST/PUT/DELETE /api/workexes
+-> expert2.workex
+
+หมายเหตุ:
+backend ใช้ citizen_id ของ user ที่ login เป็น id_card ให้อัตโนมัติ
+frontend ไม่ต้องส่ง id_card มาเอง
+
+
+3) Endpoint ที่เพิ่มสำหรับ lrdsystem2
+-------------------------------------
+
+GET/POST/PUT/DELETE /api/lrd/projects
+-> lrdsystem2.projects
+
+GET/POST/PUT/DELETE /api/lrd/researchs
+-> lrdsystem2.researchs
+
+GET/POST/PUT/DELETE /api/lrd/proposals
+-> lrdsystem2.proposals
+
+หมายเหตุ:
+backend ใช้ researcher_id จาก mapping ของ user ที่ login ให้อัตโนมัติ
+frontend ไม่ต้องส่ง researcher_id มาเอง
+
+
+4) Syntax / Route Check
+-----------------------
+
+PASS:
+
+app/Http/Controllers/Api/LrdBaseResourceController.php
+No syntax errors detected
+
+app/Http/Controllers/Api/LrdProjectController.php
+No syntax errors detected
+
+app/Http/Controllers/Api/LrdResearchController.php
+No syntax errors detected
+
+app/Http/Controllers/Api/LrdProposalController.php
+No syntax errors detected
+
+app/Models/LrdProject.php
+No syntax errors detected
+
+app/Models/LrdResearch.php
+No syntax errors detected
+
+app/Models/LrdProposal.php
+No syntax errors detected
+
+
+LRD Routes:
+
+GET     /api/lrd/projects
+POST    /api/lrd/projects
+GET     /api/lrd/projects/{project}
+PUT     /api/lrd/projects/{project}
+DELETE  /api/lrd/projects/{project}
+
+GET     /api/lrd/researchs
+POST    /api/lrd/researchs
+GET     /api/lrd/researchs/{research}
+PUT     /api/lrd/researchs/{research}
+DELETE  /api/lrd/researchs/{research}
+
+GET     /api/lrd/proposals
+POST    /api/lrd/proposals
+GET     /api/lrd/proposals/{proposal}
+PUT     /api/lrd/proposals/{proposal}
+DELETE  /api/lrd/proposals/{proposal}
+
+
+5) Test: อ่านข้อมูลจาก expert2.education
+-----------------------------------------
+
+Request:
+
+GET /api/educations?per_page=5
+
+Result:
+
+{
+    "status": "200",
+    "total": 2,
+    "first_id": 706,
+    "first_id_card": "3530900177802",
+    "first_course": "วศ.ม.วิศวกรรมคอมพิวเตอร์"
+}
+
+สรุป:
+อ่านข้อมูลจาก expert2.education ได้จริง
+ภาษาไทยแสดงผลถูกต้อง
+
+
+6) Test: CRUD expert2.education
+-------------------------------
+
+Flow:
+
+1. Login สำเร็จ
+2. POST /api/educations
+3. ตรวจ database expert2.education
+4. PUT /api/educations/{id}
+5. GET /api/educations/{id}
+6. DELETE /api/educations/{id}
+7. ตรวจว่า record test ถูกลบแล้ว
+
+Result:
+
+{
+    "login_status": "200",
+    "user_id": 4,
+    "create_status": "201",
+    "created_id": 2287,
+    "created_id_card": "3530900177802",
+    "db_created": "2287|3530900177802|TEST-CODEX-20260813155901|????????????????|2569",
+    "update_status": "200",
+    "updated_course": "TEST-CODEX-UPDATED-20260813155901",
+    "db_updated": "2287|3530900177802|TEST-CODEX-UPDATED-20260813155901|?????????????????????|2570",
+    "show_status": "200",
+    "show_course": "TEST-CODEX-UPDATED-20260813155901",
+    "delete_status": "200",
+    "delete_message": "ลบสำเร็จ",
+    "db_after_delete_count": 0
+}
+
+หมายเหตุ:
+เครื่องหมาย ????? ใน db_created/db_updated มาจาก PowerShell request encoding ตอนยิงข้อมูล test ภาษาไทย
+ไม่ใช่ปัญหาข้อมูลเดิมใน database
+ข้อมูลเดิมใน expert2 แสดงภาษาไทยได้ถูกต้อง
+
+สรุป:
+CRUD expert2.education ผ่าน
+record test ถูกลบแล้ว
+
+
+7) Test: CRUD expert2.has_research
+----------------------------------
+
+Flow:
+
+1. Login สำเร็จ
+2. POST /api/researches
+3. ตรวจ database expert2.has_research
+4. PUT /api/researches/{id}
+5. DELETE /api/researches/{id}
+6. ตรวจว่า record test ถูกลบแล้ว
+
+Result:
+
+{
+    "create_status": "201",
+    "created_id": 2025,
+    "db_created": "2025|3530900177802|TEST-RESEARCH-CODEX-20260813160127|2569",
+    "update_status": "200",
+    "updated_name": "TEST-RESEARCH-CODEX-UPDATED-20260813160127",
+    "db_updated": "2025|3530900177802|TEST-RESEARCH-CODEX-UPDATED-20260813160127|2570",
+    "delete_status": "200",
+    "delete_message": "ลบสำเร็จ",
+    "db_after_delete_count": 0
+}
+
+สรุป:
+CRUD expert2.has_research ผ่าน
+record test ถูกลบแล้ว
+
+
+8) Test: CRUD lrdsystem2.projects
+---------------------------------
+
+Flow:
+
+1. Login สำเร็จ
+2. Backend map user ไปยัง lrdsystem2.researchers แบบ read-only
+3. ได้ researcher_id = 881
+4. POST /api/lrd/projects
+5. ตรวจ database lrdsystem2.projects
+6. PUT /api/lrd/projects/{id}
+7. GET /api/lrd/projects/{id}
+8. DELETE /api/lrd/projects/{id}
+9. ตรวจว่า record test ถูกลบแล้ว
+
+Result:
+
+{
+    "login_status": "200",
+    "create_status": "201",
+    "created_id": 2574,
+    "created_researcher_id": 881,
+    "db_created": "2574|881|TEST-LRD-PROJECT-CODEX-20260813162008|12345",
+    "update_status": "200",
+    "updated_projectname": "TEST-LRD-PROJECT-CODEX-UPDATED-20260813162008",
+    "db_updated": "2574|881|TEST-LRD-PROJECT-CODEX-UPDATED-20260813162008|54321",
+    "show_status": "200",
+    "show_projectname": "TEST-LRD-PROJECT-CODEX-UPDATED-20260813162008",
+    "delete_status": "200",
+    "delete_message": "ลบสำเร็จ",
+    "db_after_delete_count": 0
+}
+
+สรุป:
+CRUD lrdsystem2.projects ผ่าน
+ใช้ researcher_id จาก user ที่ login อัตโนมัติ
+record test ถูกลบแล้ว
+
+
+9) Test: อ่านข้อมูลจาก lrdsystem2.projects
+-------------------------------------------
+
+Request:
+
+GET /api/lrd/projects?per_page=5
+
+Result:
+
+{
+    "lrd_projects_status": "200",
+    "lrd_projects_total": 5,
+    "lrd_first_researcher_id": 881,
+    "lrd_first_projectname": "การพัฒนาระบบและกลไกการจัดการนวัตกรรมองค์ความรู้ในการขับเคลื่อนงานสุขภาวะภาคเหนือตอนบน ภายใต้งานเชิงประเด็น ในมิติอากาศสะอาด มิติความมั่นคงทางอาหาร มิติระบบรองรับสังคมสูงวัย"
+}
+
+สรุป:
+อ่านข้อมูลจาก lrdsystem2.projects ได้จริง
+ภาษาไทยแสดงผลถูกต้อง
+
+
+10) Confirm: ไม่มี record test ค้าง
+-----------------------------------
+
+expert2.education:
+
+SELECT COUNT(*) FROM expert2.education WHERE course LIKE 'TEST-CODEX%';
+Result = 0
+
+expert2.has_research:
+
+SELECT COUNT(*) FROM expert2.has_research WHERE name LIKE 'TEST-RESEARCH-CODEX%';
+Result = 0
+
+lrdsystem2.projects:
+
+SELECT COUNT(*) FROM lrdsystem2.projects WHERE projectname LIKE 'TEST-LRD-PROJECT-CODEX%';
+Result = 0
+
+
+11) สรุปผลรวม
+-------------
+
+PASS:
+
+- user/master tables ยังคงเป็น read-only
+- expert2.users ไม่ถูก update
+- lrdsystem2.users ไม่ถูก update
+- lrdsystem2.researchers ไม่ถูก update
+- expert2 education/research/journal/interest/workex รองรับ CRUD ผ่าน API แล้ว
+- lrdsystem2 projects/researchs/proposals รองรับ CRUD ผ่าน API แล้ว
+- backend ใช้ token ของ user login เพื่อหา id_card/researcher_id เอง
+- frontend ไม่ต้องส่ง id_card หรือ researcher_id มาเอง
+
+สรุปสุดท้าย:
+
+ระบบรองรับแนวทางตามอาจารย์แล้ว:
+
+ตาราง user/master อ่านอย่างเดียว
+ตารางข้อมูลประกอบ expert/research สามารถอ่าน สร้าง แก้ไข และลบได้ผ่าน Laravel API
+

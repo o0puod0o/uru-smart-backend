@@ -1,0 +1,147 @@
+FRONTEND TEMP MOCK ENDPOINTS
+Deploy URL: https://info.uru.ac.th/server
+API Base URL: https://info.uru.ac.th/server/api
+
+หมายเหตุ:
+- ตอนนี้เป็น temporary mock API สำหรับให้ frontend test ก่อน
+- ยังไม่ใช่ Laravel/database จริง เพราะ server ยังใช้ PHP 7.4
+- password ของ mock account ทุกตัวคือ: password
+
+============================================================
+AUTH
+============================================================
+
+Login
+POST https://info.uru.ac.th/server/api/auth/login
+
+Body JSON:
+{
+  "email": "mockuser01@gmail.com",
+  "password": "password"
+}
+
+หรือ form-data/x-www-form-urlencoded:
+email=mockuser01@gmail.com
+password=password
+
+Response:
+{
+  "token": "php74-mock...",
+  "user": {
+    "id": 7,
+    "code": "2180",
+    "full_name_th": "Mock User01",
+    "full_name_en": "Mock User01",
+    "email": "mockuser01@gmail.com",
+    "faculty_name_th": "Uttaradit Rajabhat University",
+    "department_name_th": "Demo Department",
+    "picture": null
+  }
+}
+
+หลัง login ให้ส่ง header:
+Authorization: Bearer <token>
+Accept: application/json
+
+Logout
+POST https://info.uru.ac.th/server/api/auth/logout
+
+
+============================================================
+BASIC
+============================================================
+
+Health check
+GET https://info.uru.ac.th/server/api/ping
+
+Me
+GET https://info.uru.ac.th/server/api/me
+
+
+============================================================
+PROFILE SEARCH
+============================================================
+
+All profiles
+GET https://info.uru.ac.th/server/api/profile-search
+
+Filter by expertise group id
+GET https://info.uru.ac.th/server/api/profile-search?group_id=600
+GET https://info.uru.ac.th/server/api/profile-search?expertise_group_id=600
+
+Filter by expertise name
+GET https://info.uru.ac.th/server/api/profile-search?expertise=Software%20Engineering
+
+Search by keyword
+GET https://info.uru.ac.th/server/api/profile-search?keyword=mockuser01
+
+Response มี expertises:
+[
+  {
+    "id": 7,
+    "full_name_en": "Mock User01",
+    "expertises": [
+      {
+        "id": 600,
+        "group_id": 600,
+        "name": "Software Engineering"
+      }
+    ]
+  }
+]
+
+
+============================================================
+MOCK ACCOUNTS
+============================================================
+
+phanuwat@live.uru.ac.th / password
+somsak@gmail.com / password
+mockuser01@gmail.com / password
+mockuser02@gmail.com / password
+mockuser03@gmail.com / password
+mockuser04@gmail.com / password
+mockuser05@gmail.com / password
+mockuser06@gmail.com / password
+mockuser07@gmail.com / password
+mockuser08@gmail.com / password
+mockuser09@gmail.com / password
+mockuser10@gmail.com / password
+
+
+============================================================
+EXPERTISE GROUP MOCK IDS
+============================================================
+
+600 = Software Engineering
+601 = Educational Technology
+602 = Community Information System
+603 = Smart Campus and IoT
+604 = Artificial Intelligence
+605 = Public Health Informatics
+606 = Tourism Data Platform
+607 = Smart Farming
+608 = Digital Business
+609 = Research Information System
+
+
+============================================================
+CURL TEST
+============================================================
+
+Health:
+curl -k -i https://info.uru.ac.th/server/api/ping
+
+Login:
+curl -k -i -X POST ^
+  -H "Accept: application/json" ^
+  --data-urlencode "email=mockuser01@gmail.com" ^
+  --data-urlencode "password=password" ^
+  https://info.uru.ac.th/server/api/auth/login
+
+Me:
+curl -k -i ^
+  -H "Accept: application/json" ^
+  -H "Authorization: Bearer <token>" ^
+  https://info.uru.ac.th/server/api/me
+

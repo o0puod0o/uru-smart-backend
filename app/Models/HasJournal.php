@@ -6,10 +6,12 @@ use Illuminate\Database\Eloquent\Model;
 
 class HasJournal extends Model
 {
-    protected $table = 'has_journals';
+    protected $connection = 'expert';
+
+    protected $table = 'has_journal';
 
     protected $fillable = [
-        'user_id', 'name', 'year', 'journal_type_id', 'dateAdd', 'url',
+        'id_card', 'name', 'year', 'journal_type_id', 'dateAdd', 'url',
     ];
 
     public $timestamps = false;
@@ -17,11 +19,6 @@ class HasJournal extends Model
     protected $casts = [
         'dateAdd' => 'datetime',
     ];
-
-    public function user()
-    {
-        return $this->belongsTo(User::class, 'user_id', 'id');
-    }
 
     public function journalType()
     {

@@ -6,16 +6,14 @@ use Illuminate\Database\Eloquent\Model;
 
 class HasInterest extends Model
 {
-    protected $table = 'has_interests';
+    protected $connection = 'expert';
 
-    protected $fillable = ['user_id', 'name', 'dateAdd'];
+    protected $table = 'has_interest';
+
+    protected $fillable = ['id_card', 'name', 'dateAdd'];
 
     public $timestamps = false;
 
     protected $casts = ['dateAdd' => 'datetime'];
 
-    public function user()
-    {
-        return $this->belongsTo(User::class, 'user_id', 'id');
-    }
 }

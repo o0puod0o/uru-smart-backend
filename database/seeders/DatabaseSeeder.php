@@ -12,8 +12,13 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
+        $adminEmail = env('SEED_ADMIN_EMAIL');
+        if ($adminEmail) {
+            \App\Models\User::where('email', $adminEmail)->update(['role' => 'admin']);
+        }
         $this->call([
             ReferenceSeeder::class,
+            UruUnitSeeder::class,
             AnnouncementSeeder::class,
         ]);
     }

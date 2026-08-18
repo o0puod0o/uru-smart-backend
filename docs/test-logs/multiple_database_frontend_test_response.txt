@@ -1,0 +1,241 @@
+URU SMART - LOCAL FRONTEND + SSO TOKEN + MULTIPLE DATABASE TEST RESPONSE
+========================================================================
+
+Test Date:
+2026-08-11
+
+Local Base URL:
+http://localhost:8001
+
+Frontend Demo URL:
+http://localhost:8001/frontend-sso-demo
+
+
+1) Test Objective
+-----------------
+
+ทดสอบว่า frontend สามารถ login ผ่าน API ได้จริง, ได้ token กลับมา,
+แล้วนำ token ไปเรียก protected API เพื่อดึงข้อมูลจาก 2 database ได้จริง
+โดย database ที่ใช้คือ:
+
+1. expert2
+   - ใช้เป็นฐานหลักสำหรับ login / SSO profile
+   - ตารางหลัก: users
+
+2. lrdsystem2
+   - ใช้เป็นฐานข้อมูลผลงาน / โครงการ / งานวิจัย
+   - ตารางหลัก: researchers, projects, researchs, proposals
+
+
+2) Database Connection Confirmation
+-----------------------------------
+
+Laravel สามารถเชื่อมต่อ 2 database ได้จริงผ่านคนละ connection:
+
+{
+    "expert_db": "expert2",
+    "lrd_db": "lrdsystem2",
+    "expert_users": 1206,
+    "lrd_researchers": 559,
+    "matched_lrd_id": 881
+}
+
+ความหมาย:
+
+- connection expert ชี้ไปที่ database expert2
+- connection lrd ชี้ไปที่ database lrdsystem2
+- expert2.users มีข้อมูล 1206 records
+- lrdsystem2.researchers มีข้อมูล 559 records
+- user ที่ใช้ทดสอบสามารถ match กับ researcher id 881 ได้จริง
+
+
+3) API Routes Used By Frontend
+------------------------------
+
+3.1 Login
+
+POST /api/auth/login
+
+Request Body:
+
+{
+    "email": "3530900177802",
+    "password": "password"
+}
+
+หมายเหตุ:
+field email ฝั่ง frontend ยังใช้ชื่อเดิมได้ แต่ backend รองรับทั้ง email, username และ id_card
+
+
+3.2 Get Current User
+
+GET /api/me
+
+Required Header:
+
+Authorization: Bearer <token>
+Accept: application/json
+
+
+3.3 Get External Profile From 2 Databases
+
+GET /api/me/external-profile
+
+Required Header:
+
+Authorization: Bearer <token>
+Accept: application/json
+
+
+3.4 Logout
+
+POST /api/auth/logout
+
+Required Header:
+
+Authorization: Bearer <token>
+Accept: application/json
+
+
+4) Full Test Response Summary
+-----------------------------
+
+{
+    "protected_without_token": 401,
+    "login_wrong_password": 401,
+    "login_status": "200",
+    "token_exists": true,
+    "token_sample": "58|PYv9ya5nodoLH9K...",
+    "login_user_id": 4,
+    "login_user_email": "mr.phanuwat@gmail.com",
+    "me_status": "200",
+    "me_user_id": 4,
+    "me_email": "mr.phanuwat@gmail.com",
+    "external_profile_status": "200",
+    "expert_users_id": 304,
+    "expert_id_card": "3530900177802",
+    "lrd_researcher_id": 881,
+    "lrd_codeuser": "3530900177802",
+    "expert_education_count": 2,
+    "expert_research_count": 10,
+    "lrd_projects_count": 5,
+    "lrd_researchs_count": 4,
+    "logout_status": "200",
+    "logout_message": "Logged out successfully",
+    "after_logout_me": 401
+}
+
+
+5) Meaning Of Each Test Result
+------------------------------
+
+protected_without_token = 401
+หมายความว่า endpoint ที่ต้อง login ไม่สามารถเข้าได้ถ้าไม่มี token
+
+login_wrong_password = 401
+หมายความว่า login ด้วย password ผิด ระบบปฏิเสธถูกต้อง
+
+login_status = 200
+หมายความว่า login ด้วยข้อมูลถูกต้องสำเร็จ
+
+token_exists = true
+หมายความว่า backend ออก token ให้ frontend ได้จริง
+
+me_status = 200
+หมายความว่า frontend ใช้ token เรียก /api/me ได้จริง
+
+external_profile_status = 200
+หมายความว่า frontend ใช้ token เรียก /api/me/external-profile ได้จริง
+
+logout_status = 200
+หมายความว่า logout สำเร็จ
+
+after_logout_me = 401
+หมายความว่า token เดิมถูก revoke หลัง logout แล้ว ไม่สามารถใช้ต่อได้
+
+
+6) Cross Database Mapping
+-------------------------
+
+ข้อมูล user จาก expert2:
+
+expert2.users.users_id = 304
+expert2.users.username = 3530900177802
+expert2.users.id_card  = 3530900177802
+
+ข้อมูล researcher จาก lrdsystem2:
+
+lrdsystem2.researchers.id       = 881
+lrdsystem2.researchers.codeuser = 3530900177802
+lrdsystem2.researchers.username = 3530900177802
+
+Key ที่ใช้เชื่อมจริงใน test นี้:
+
+expert2.users.id_card = lrdsystem2.researchers.codeuser
+3530900177802         = 3530900177802
+
+
+7) Data Pulled From Each Database
+---------------------------------
+
+From expert2:
+
+- profile: found
+- education: 2 records
+- research: 10 records
+
+From lrdsystem2:
+
+- researcher: found
+- projects: 5 records
+- researchs: 4 records
+
+
+8) Frontend Flow Explanation
+----------------------------
+
+Frontend ไม่ได้เชื่อม database เอง
+Frontend ทำหน้าที่เรียก API เท่านั้น
+
+Flow:
+
+1. Frontend ส่ง username/id_card และ password ไปที่ /api/auth/login
+2. Backend ตรวจสอบ login จาก expert2.users
+3. Backend ออก Sanctum token ให้ frontend
+4. Frontend เก็บ token
+5. Frontend ส่ง token ไปกับ header Authorization
+6. Backend อ่าน token แล้วรู้ว่า user คือใคร
+7. Backend ใช้ข้อมูลของ user เช่น id_card / username ไปเชื่อมข้อมูลจาก lrdsystem2
+8. Backend รวมข้อมูลจาก expert2 และ lrdsystem2 แล้วส่ง response กลับให้ frontend
+
+
+9) Final Conclusion
+-------------------
+
+ผลการทดสอบยืนยันว่า Laravel project นี้สามารถใช้งาน multiple database connection ได้จริง
+โดยใช้ expert2 เป็น database หลักสำหรับ login / SSO profile
+และใช้ lrdsystem2 เป็น database เพิ่มเติมสำหรับข้อมูลโครงการและผลงานวิจัย
+
+หลังจาก login สำเร็จ frontend ได้ token และสามารถใช้ token นั้นเรียก API
+เพื่อดึงข้อมูลจากทั้ง expert2 และ lrdsystem2 ได้จริง
+
+ดังนั้น architecture แบบนี้สามารถนำไปใช้งานจริงได้
+โดย frontend ไม่ต้องรู้รายละเอียดการเชื่อม database
+เพราะ backend เป็นตัวจัดการการเชื่อมต่อและ mapping ระหว่าง database ทั้งหมด
+
+
+10) Checked Items
+-----------------
+
+PASS: /api/ping = 200
+PASS: /frontend-sso-demo = 200
+PASS: /api/me/external-profile without token = 401
+PASS: /api/auth/login with wrong password = 401
+PASS: /api/auth/login with correct password = 200
+PASS: /api/me with token = 200
+PASS: /api/me/external-profile with token = 200
+PASS: /api/auth/logout = 200
+PASS: /api/me after logout = 401
+PASS: expert database connection = expert2
+PASS: lrd database connection = lrdsystem2
+

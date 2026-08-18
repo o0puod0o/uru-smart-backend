@@ -8,8 +8,11 @@ use Illuminate\Support\Facades\Log;
 
 class ChatController extends Controller
 {
-    public function __construct(private GeminiService $geminiService)
+    private GeminiService $geminiService;
+
+    public function __construct(GeminiService $geminiService)
     {
+        $this->geminiService = $geminiService;
     }
 
     public function send(Request $request)

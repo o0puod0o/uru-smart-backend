@@ -7,6 +7,7 @@ use App\Models\Workex;
 class WorkexController extends BaseResourceController
 {
     protected string $modelClass = Workex::class;
+    protected string $ownerColumn = 'id_card';
 
     protected array $rules = [
         'year_start' => 'required|string|size:4',

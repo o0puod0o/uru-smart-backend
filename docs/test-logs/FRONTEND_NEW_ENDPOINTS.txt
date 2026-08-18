@@ -1,0 +1,323 @@
+URU SMART - FRONTEND ENDPOINTS ADDED/UPDATED
+===========================================
+
+Base API URL
+------------
+
+https://aritapp.uru.ac.th/urusmart/api
+
+
+Required Header for Protected APIs
+----------------------------------
+
+Authorization: Bearer <token>
+Accept: application/json
+
+
+Important Server Note: PUT / PATCH / DELETE
+-------------------------------------------
+
+On this IIS server, direct PUT / PATCH / DELETE may fail.
+Use POST with X-HTTP-Method-Override instead.
+
+Example DELETE:
+
+POST https://aritapp.uru.ac.th/urusmart/api/proposals/1
+X-HTTP-Method-Override: DELETE
+Authorization: Bearer <token>
+Accept: application/json
+
+Body can be empty or:
+
+{
+  "_method": "DELETE"
+}
+
+
+1) Project / Proposal APIs
+--------------------------
+
+GET    /proposals
+POST   /proposals
+GET    /proposals/{id}
+PUT    /proposals/{id}
+DELETE /proposals/{id}
+
+Full URLs:
+
+GET    https://aritapp.uru.ac.th/urusmart/api/proposals
+POST   https://aritapp.uru.ac.th/urusmart/api/proposals
+GET    https://aritapp.uru.ac.th/urusmart/api/proposals/{id}
+PUT    https://aritapp.uru.ac.th/urusmart/api/proposals/{id}
+DELETE https://aritapp.uru.ac.th/urusmart/api/proposals/{id}
+
+Query Params:
+
+scope=mine
+scope=all
+q=keyword
+status=draft|submitted|approved|rejected
+year=2026
+page=1
+per_page=20
+
+Example:
+
+GET /proposals?scope=mine&page=1&per_page=20
+
+Create Body:
+
+{
+  "title": "ชื่อข้อเสนอโครงการ",
+  "summary": "รายละเอียด",
+  "year": "2026",
+  "budget": 10000,
+  "status": "draft"
+}
+
+Status values:
+
+draft
+submitted
+approved
+rejected
+
+
+2) Report APIs
+--------------
+
+GET    /reports
+POST   /reports
+GET    /reports/{id}
+PUT    /reports/{id}
+DELETE /reports/{id}
+
+Full URLs:
+
+GET    https://aritapp.uru.ac.th/urusmart/api/reports
+POST   https://aritapp.uru.ac.th/urusmart/api/reports
+GET    https://aritapp.uru.ac.th/urusmart/api/reports/{id}
+PUT    https://aritapp.uru.ac.th/urusmart/api/reports/{id}
+DELETE https://aritapp.uru.ac.th/urusmart/api/reports/{id}
+
+Query Params:
+
+scope=mine
+scope=all
+q=keyword
+status=draft|submitted|revision_requested|approved
+page=1
+per_page=20
+
+Example:
+
+GET /reports?scope=mine&page=1&per_page=20
+
+Create Body:
+
+{
+  "proposal_id": 1,
+  "title": "รายงานความคืบหน้า",
+  "content": "รายละเอียดรายงาน",
+  "status": "draft"
+}
+
+Status values:
+
+draft
+submitted
+revision_requested
+approved
+
+
+3) File / Attachment APIs
+-------------------------
+
+GET    /files?entity_type={type}&entity_id={id}
+POST   /files
+GET    /files/{file}/download
+DELETE /files/{file}
+
+Full URLs:
+
+GET    https://aritapp.uru.ac.th/urusmart/api/files?entity_type=proposal&entity_id=1
+POST   https://aritapp.uru.ac.th/urusmart/api/files
+GET    https://aritapp.uru.ac.th/urusmart/api/files/{file}/download
+DELETE https://aritapp.uru.ac.th/urusmart/api/files/{file}
+
+Upload uses multipart/form-data.
+
+Fields:
+
+entity_type: proposal | report | journal
+entity_id: 1
+file: <file>
+
+Allowed file types:
+
+pdf
+doc
+docx
+xls
+xlsx
+jpg
+jpeg
+png
+
+Max file size:
+
+10MB
+
+
+4) Admin User APIs
+------------------
+
+Admin only.
+
+GET    /admin/users
+GET    /admin/users/{id}
+PUT    /admin/users/{id}
+PATCH  /admin/users/{id}/role
+DELETE /admin/users/{id}
+
+Full URLs:
+
+GET    https://aritapp.uru.ac.th/urusmart/api/admin/users
+GET    https://aritapp.uru.ac.th/urusmart/api/admin/users/{id}
+PUT    https://aritapp.uru.ac.th/urusmart/api/admin/users/{id}
+PATCH  https://aritapp.uru.ac.th/urusmart/api/admin/users/{id}/role
+DELETE https://aritapp.uru.ac.th/urusmart/api/admin/users/{id}
+
+Query Params:
+
+q=keyword
+role=user|admin
+page=1
+per_page=20
+
+Example:
+
+GET /admin/users?q=somsak&role=user&page=1&per_page=20
+
+Update role body:
+
+{
+  "role": "admin"
+}
+
+or:
+
+{
+  "role": "user"
+}
+
+
+5) Notification APIs
+--------------------
+
+GET    /notifications
+GET    /notifications/unread-count
+PATCH  /notifications/{id}/read
+POST   /notifications/read-all
+DELETE /notifications/{id}
+
+Full URLs:
+
+GET    https://aritapp.uru.ac.th/urusmart/api/notifications
+GET    https://aritapp.uru.ac.th/urusmart/api/notifications/unread-count
+PATCH  https://aritapp.uru.ac.th/urusmart/api/notifications/{id}/read
+POST   https://aritapp.uru.ac.th/urusmart/api/notifications/read-all
+DELETE https://aritapp.uru.ac.th/urusmart/api/notifications/{id}
+
+Query Params:
+
+page=1
+per_page=20
+
+Example:
+
+GET /notifications?page=1&per_page=20
+
+Notification response includes these routing fields:
+
+{
+  "entity_type": "proposal",
+  "entity_id": 1,
+  "route": "/proposals/1"
+}
+
+
+6) Unit Dropdown APIs
+---------------------
+
+GET /main-units
+GET /sub-units
+GET /ref/profile-options
+
+Full URLs:
+
+GET https://aritapp.uru.ac.th/urusmart/api/main-units
+GET https://aritapp.uru.ac.th/urusmart/api/sub-units
+GET https://aritapp.uru.ac.th/urusmart/api/ref/profile-options
+
+profile-options includes:
+
+{
+  "main_units": [],
+  "sub_units": []
+}
+
+Server test result:
+
+main_units = 26 items
+sub_units = 185 items
+
+
+7) Frontend Axios Method Override Example
+-----------------------------------------
+
+Use this if the server has issues with PUT / PATCH / DELETE.
+
+api.interceptors.request.use((config) => {
+  const method = config.method?.toLowerCase();
+
+  if (['put', 'patch', 'delete'].includes(method)) {
+    config.headers['X-HTTP-Method-Override'] = method.toUpperCase();
+    config.method = 'post';
+    config.data ??= {};
+  }
+
+  return config;
+});
+
+
+8) Insert Success But List Not Showing Checklist
+------------------------------------------------
+
+If POST/insert succeeds but the new item does not show in frontend:
+
+1. Check if frontend refetches the list after POST.
+2. Check cache invalidation if using React Query / SWR / custom cache.
+3. Check GET query params:
+   - scope=mine or scope=all
+   - status
+   - year
+   - q
+   - page
+4. Check response shape:
+   - list may be in response.data.data
+   - pagination meta may be in response.data.meta
+5. Check whether created item has status that is hidden by current filter.
+
+
+Common Full URLs
+----------------
+
+https://aritapp.uru.ac.th/urusmart/api/proposals
+https://aritapp.uru.ac.th/urusmart/api/reports
+https://aritapp.uru.ac.th/urusmart/api/files
+https://aritapp.uru.ac.th/urusmart/api/notifications
+https://aritapp.uru.ac.th/urusmart/api/main-units
+https://aritapp.uru.ac.th/urusmart/api/sub-units
+https://aritapp.uru.ac.th/urusmart/api/ref/profile-options
+

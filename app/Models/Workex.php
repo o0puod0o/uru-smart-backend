@@ -6,10 +6,12 @@ use Illuminate\Database\Eloquent\Model;
 
 class Workex extends Model
 {
-    protected $table = 'workexes';
+    protected $connection = 'expert';
+
+    protected $table = 'workex';
 
     protected $fillable = [
-        'user_id', 'year_start', 'year_end',
+        'id_card', 'year_start', 'year_end',
         'position', 'workplace', 'dateAdd',
     ];
 
@@ -17,8 +19,4 @@ class Workex extends Model
 
     protected $casts = ['dateAdd' => 'datetime'];
 
-    public function user()
-    {
-        return $this->belongsTo(User::class, 'user_id', 'id');
-    }
 }

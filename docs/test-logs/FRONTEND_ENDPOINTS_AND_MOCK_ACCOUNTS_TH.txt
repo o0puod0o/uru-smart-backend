@@ -1,0 +1,468 @@
+FRONTEND ENDPOINTS + MOCK LOGIN ACCOUNTS
+สำหรับทดสอบ local/LAN ก่อน deploy จริง
+
+อัปเดตล่าสุด: 2026-08-17
+
+============================================================
+BASE URL
+============================================================
+
+Local เครื่องตัวเอง:
+http://localhost:8001/api
+
+LAN สำหรับเครื่องอื่นในวงเดียวกัน:
+http://10.1.73.75:8001/api
+
+phpMyAdmin:
+http://10.1.73.75:8081
+
+หมายเหตุ:
+- ทุก endpoint ที่อยู่หลัง login ต้องส่ง Header:
+  Authorization: Bearer <token>
+  Accept: application/json
+- Frontend ใช้ endpoint login เดิมได้เลย ไม่ต้องเรียก mock-sso เอง
+- mock-sso เป็นตัวจำลอง SSO จริงภายใน backend
+- ตอนใช้ mock ชั่วคราวบน server สามารถเปิด SSO_FAST_MOCK=true เพื่อไม่ให้ backend ยิง HTTP วนหา mock-sso เอง ทำให้ login เร็วขึ้น
+
+
+============================================================
+1) APP หลัก / expert2 + mobile users
+============================================================
+
+Health check
+GET /ping
+
+Public profile
+GET /profile/{id}
+GET /profile/{id}/pdf
+
+Auth
+POST /auth/login
+Body:
+{
+  "email": "mockuser01@gmail.com",
+  "password": "password"
+}
+
+Response สำคัญ:
+{
+  "token": "...",
+  "user": {
+    "id": 7,
+    "code": "2180",
+    "full_name_th": "...",
+    "full_name_en": "Mock User01",
+    "email": "mockuser01@gmail.com"
+  }
+}
+
+POST /auth/sso-token
+ใช้ในกรณีมี SSO token จากภายนอกแล้ว
+
+POST /auth/logout
+ต้องมี Bearer token
+
+Profile หลัง login
+GET /me
+GET /me/external-profile
+PUT /me
+POST /me/photo
+DELETE /me/photo
+
+Push / Notification
+POST /push-token
+DELETE /push-token
+PUT /notification-settings
+GET /notifications
+GET /notifications/unread-count
+PATCH /notifications/{id}/read
+POST /notifications/read-all
+DELETE /notifications/{id}
+
+Chatbot
+POST /chat
+
+Announcement / Search
+GET /announcements
+GET /profile-search
+
+Profile search filter กลุ่มความเชี่ยวชาญ
+GET /profile-search?expertise_group_id=6
+GET /profile-search?group_id=6
+GET /profile-search?expertise=วิศวกรรมศาสตร์
+
+หมายเหตุ:
+- expertise_group_id และ group_id จะ filter จาก has_experts.expert_id
+- expertise จะ filter จาก has_experts.name แบบตรงตัว
+- expertise_group ของเดิมยังใช้ได้ และยังค้นแบบ like จากชื่อเหมือนเดิม
+- response field expertises จะคืนเป็น object:
+  [
+    {
+      "id": 6,
+      "group_id": 6,
+      "name": "วิศวกรรมศาสตร์"
+    }
+  ]
+
+Reference หลัก
+GET /prefixes
+GET /positions
+GET /lines
+GET /main-units
+GET /sub-units
+
+Reference แบบ grouped
+GET /ref/profile-options
+GET /ref/search-options
+GET /ref/search-fields
+GET /ref/expertise-options
+GET /ref/interest-options
+GET /ref/research-types
+GET /ref/research-levels
+GET /ref/research-pmu-types
+GET /ref/journal-types
+GET /ref/degrees
+GET /ref/departments
+GET /ref/expertise-groups
+
+ข้อมูล profile/expert2 ที่แก้ไขได้ใน mobile app
+GET    /researches
+POST   /researches
+GET    /researches/{id}
+PUT    /researches/{id}
+DELETE /researches/{id}
+
+GET    /journals
+POST   /journals
+GET    /journals/{id}
+PUT    /journals/{id}
+DELETE /journals/{id}
+
+GET    /books
+POST   /books
+GET    /books/{id}
+PUT    /books/{id}
+DELETE /books/{id}
+
+GET    /patents
+POST   /patents
+GET    /patents/{id}
+PUT    /patents/{id}
+DELETE /patents/{id}
+
+GET    /awards
+POST   /awards
+GET    /awards/{id}
+PUT    /awards/{id}
+DELETE /awards/{id}
+
+GET    /academics
+POST   /academics
+GET    /academics/{id}
+PUT    /academics/{id}
+DELETE /academics/{id}
+
+GET    /trainings
+POST   /trainings
+GET    /trainings/{id}
+PUT    /trainings/{id}
+DELETE /trainings/{id}
+
+GET    /lecturers
+POST   /lecturers
+GET    /lecturers/{id}
+PUT    /lecturers/{id}
+DELETE /lecturers/{id}
+
+GET    /proceedings
+POST   /proceedings
+GET    /proceedings/{id}
+PUT    /proceedings/{id}
+DELETE /proceedings/{id}
+
+GET    /hsps
+POST   /hsps
+GET    /hsps/{id}
+PUT    /hsps/{id}
+DELETE /hsps/{id}
+
+GET    /workexes
+POST   /workexes
+GET    /workexes/{id}
+PUT    /workexes/{id}
+DELETE /workexes/{id}
+
+GET    /boardexes
+POST   /boardexes
+GET    /boardexes/{id}
+PUT    /boardexes/{id}
+DELETE /boardexes/{id}
+
+GET    /educations
+POST   /educations
+GET    /educations/{id}
+PUT    /educations/{id}
+DELETE /educations/{id}
+
+GET    /interests
+POST   /interests
+GET    /interests/{id}
+PUT    /interests/{id}
+DELETE /interests/{id}
+
+GET    /expertises
+POST   /expertises
+GET    /expertises/{id}
+PUT    /expertises/{id}
+DELETE /expertises/{id}
+
+GET    /proposals
+POST   /proposals
+GET    /proposals/{id}
+PUT    /proposals/{id}
+DELETE /proposals/{id}
+
+GET    /reports
+POST   /reports
+GET    /reports/{id}
+PUT    /reports/{id}
+DELETE /reports/{id}
+
+Files
+GET    /files
+POST   /files
+GET    /files/{file}/download
+DELETE /files/{file}
+
+
+============================================================
+2) MODULE งานวิจัย / lrdsystem2
+============================================================
+
+Reference ของ module งานวิจัย
+GET /lrd/facultys
+GET /lrd/branchs
+GET /lrd/paperindexs
+
+LRD Educations
+GET    /lrd/educations
+POST   /lrd/educations
+GET    /lrd/educations/{id}
+PUT    /lrd/educations/{id}
+DELETE /lrd/educations/{id}
+
+LRD Papers
+GET    /lrd/papers
+POST   /lrd/papers
+GET    /lrd/papers/{id}
+PUT    /lrd/papers/{id}
+DELETE /lrd/papers/{id}
+
+LRD Projects
+GET    /lrd/projects
+POST   /lrd/projects
+GET    /lrd/projects/{id}
+PUT    /lrd/projects/{id}
+DELETE /lrd/projects/{id}
+
+LRD Researchs
+GET    /lrd/researchs
+POST   /lrd/researchs
+GET    /lrd/researchs/{id}
+PUT    /lrd/researchs/{id}
+DELETE /lrd/researchs/{id}
+
+LRD Proposals
+GET    /lrd/proposals
+POST   /lrd/proposals
+GET    /lrd/proposals/{id}
+PUT    /lrd/proposals/{id}
+DELETE /lrd/proposals/{id}
+
+หมายเหตุ module งานวิจัย:
+- หลัง login แล้วใช้ token เดียวกันกับ app หลัก
+- อ่านข้อมูลคนอื่นได้
+- แก้ไข/ลบ ควรทำได้เฉพาะข้อมูลที่เป็นของ user ตัวเอง ตาม policy ที่คุยไว้
+- ตาราง user read-only:
+  SSO user
+  expert2.users
+  lrdsystem2.users
+  lrdsystem2.researchers
+
+
+============================================================
+3) MOCK SSO ROUTES ใช้สำหรับ backend จำลอง SSO เท่านั้น
+============================================================
+
+ปกติ frontend ไม่ต้องเรียกเอง
+
+POST /mock-sso/oauth/token
+GET  /mock-sso/api/userinfo
+GET  /mock-sso/experts/{citizen_id}?token=mock-expert-api-token
+
+ตัวอย่าง callback:
+GET /mock-sso/experts/1111111111101?token=mock-expert-api-token
+
+Response จะมีโครง:
+{
+  "data": {
+    "profile": {},
+    "expert": {},
+    "interests": [],
+    "education": [],
+    "workEx": [],
+    "boardex": [],
+    "lecturers": [],
+    "research": []
+  }
+}
+
+
+============================================================
+4) MOCK ACCOUNTS ที่ login ได้ทั้งหมด
+============================================================
+
+password ทุก account คือ:
+password
+
+1.
+email: phanuwat@live.uru.ac.th
+password: password
+citizen_id: 3530900177802
+expert mock: Artificial Intelligence
+
+2.
+email: somsak@gmail.com
+password: password
+citizen_id: 1111111111111
+expert mock: Public Health Informatics
+
+3.
+email: mockuser01@gmail.com
+password: password
+citizen_id: 1111111111101
+expert mock: Software Engineering
+
+4.
+email: mockuser02@gmail.com
+password: password
+citizen_id: 1111111111102
+expert mock: Educational Technology
+
+5.
+email: mockuser03@gmail.com
+password: password
+citizen_id: 1111111111103
+expert mock: Community Information System
+
+6.
+email: mockuser04@gmail.com
+password: password
+citizen_id: 1111111111104
+expert mock: Smart Campus and IoT
+
+7.
+email: mockuser05@gmail.com
+password: password
+citizen_id: 1111111111105
+expert mock: Artificial Intelligence
+
+8.
+email: mockuser06@gmail.com
+password: password
+citizen_id: 1111111111106
+expert mock: Public Health Informatics
+
+9.
+email: mockuser07@gmail.com
+password: password
+citizen_id: 1111111111107
+expert mock: Tourism Data Platform
+
+10.
+email: mockuser08@gmail.com
+password: password
+citizen_id: 1111111111108
+expert mock: Smart Farming
+
+11.
+email: mockuser09@gmail.com
+password: password
+citizen_id: 1111111111109
+expert mock: Digital Business
+
+12.
+email: mockuser10@gmail.com
+password: password
+citizen_id: 1111111111110
+expert mock: Research Information System
+
+
+============================================================
+5) FLOW สำหรับ FRONTEND
+============================================================
+
+Step 1: Login
+POST http://10.1.73.75:8001/api/auth/login
+Body:
+{
+  "email": "mockuser01@gmail.com",
+  "password": "password"
+}
+
+Step 2: เก็บ token จาก response
+token = response.token
+
+Step 3: เรียก endpoint อื่นโดยแนบ header
+Authorization: Bearer <token>
+Accept: application/json
+
+ตัวอย่าง:
+GET http://10.1.73.75:8001/api/me
+GET http://10.1.73.75:8001/api/lrd/researchs
+POST http://10.1.73.75:8001/api/lrd/researchs
+
+Step 4: Logout
+POST http://10.1.73.75:8001/api/auth/logout
+
+
+============================================================
+6) TEST LOG ล่าสุด
+============================================================
+
+Syntax check:
+No syntax errors detected in app/Http/Controllers/MockSsoController.php
+No syntax errors detected in config/sso.php
+
+Auth feature test:
+PASS Tests\Feature\AuthTest
+Tests: 6 passed (13 assertions)
+
+Manual login test:
+
+LOGIN_OK email=somsak@gmail.com
+app_user_id=6
+citizen_id=1111111111111
+synced_email=somsak@gmail.com
+full_name_en=Somsak Test
+expert=Public Health Informatics
+interest1=Public Health Informatics
+research1=Health Information Dashboard for Community Hospitals
+
+LOGIN_OK email=mockuser01@gmail.com
+app_user_id=7 citizen_id=1111111111101 synced_email=mockuser01@gmail.com
+full_name_en=Mock User01
+expert=Software Engineering
+research1=Mobile Application for University Student Services
+
+LOGIN_OK email=mockuser02@gmail.com
+app_user_id=8 citizen_id=1111111111102 synced_email=mockuser02@gmail.com
+full_name_en=Mock User02
+expert=Educational Technology
+research1=Digital Learning Platform for Local Schools
+
+LOGIN_OK email=mockuser10@gmail.com
+app_user_id=9 citizen_id=1111111111110 synced_email=mockuser10@gmail.com
+full_name_en=Mock User10
+expert=Research Information System
+research1=Research Management API for University Mobile App

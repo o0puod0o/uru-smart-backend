@@ -1,0 +1,350 @@
+Chat Transcript - Multiple Database Connection Demo
+Date: 2026-08-10
+Project: C:\Users\pangk\Desktop\forworkfinalproject\mobile-backend
+
+User:
+ส่ง API Expert:
+https://expert.uru.ac.th/api/experts/304?token=...
+ขอให้เช็คว่า body mock ที่ทำไว้มีโครงสร้างตรงกับ API นี้ไหม
+
+Assistant:
+ตรวจ API แล้วพบว่า API Expert ส่ง response เป็นโครงสร้างแบบ nested:
+
+{
+  "data": {
+    "profile": {...},
+    "expert": {...},
+    "interests": [],
+    "education": [],
+    "workEx": [],
+    "boardex": [],
+    "lecturers": [],
+    "research": [],
+    "journals": [],
+    "proceedings": [],
+    "hsps": [],
+    "books": [],
+    "patents": [],
+    "awards": [],
+    "academics": []
+  }
+}
+
+ส่วน mock เดิมของระบบเป็น SSO userinfo แบบ flat body เช่น id, code, username, email, first_name_th, last_name_th ฯลฯ จึงไม่ตรงกับ Expert API
+
+User:
+ขอให้ปรับ body ให้ตรงกับ link และแก้ database ด้วย
+
+Assistant:
+ตอนแรกได้ปรับ mock body ให้เป็นทรง Expert API และเพิ่ม logic sync payload expert ลง database หลัก พร้อม migration เพิ่ม field ต่าง ๆ เช่น expert_profile_id, source_id ฯลฯ
+
+User:
+ถามว่าวิธี multiple database connection ของ Laravel ใช้ได้จริงไหม และอยากย้อนกลับก่อนแก้ แล้วลองใช้วิธีนี้แทน
+
+Assistant:
+ยืนยันว่า Laravel รองรับ multiple database connections ได้จริงอย่างเป็นทางการ โดยตั้งหลาย connection ใน config/database.php แล้วเรียกใช้ผ่าน:
+
+DB::connection('mysql_second')->table('...')->get();
+
+หรือกำหนดใน Eloquent model:
+
+protected $connection = 'mysql_second';
+
+จากนั้นถอยการแก้แบบ sync expert payload ออก และปรับ mock body กลับเป็น SSO flat body
+
+User:
+อธิบายเพิ่มว่าอยากแค่ test multiple connection และ database ทั้งสองตัวขอเป็น SQL
+
+Assistant:
+ปรับระบบเป็น MySQL ทั้งสองฝั่ง และเพิ่ม connection ชื่อ mysql_second ใน config/database.php
+
+เพิ่ม env:
+
+DB_SECOND_HOST=db_second
+DB_SECOND_PORT=3306
+DB_SECOND_DATABASE=mobile_second_db
+DB_SECOND_USERNAME=mobile_second_user
+DB_SECOND_PASSWORD=secret
+
+เพิ่ม MySQL container ตัวที่สองใน docker-compose.yml ชื่อ db_second
+
+เพิ่ม Artisan command:
+
+php artisan db:test-multiple-connections
+
+คำสั่งนี้ทำงานดังนี้:
+1. อ่านชื่อ database จาก connection mysql
+2. อ่านชื่อ database จาก connection mysql_second
+3. สร้างตาราง connection_test ในฐานที่สอง
+4. insert row ลงฐานที่สอง
+5. count row เพื่อยืนยันว่าเขียนได้จริง
+
+ผลทดสอบ:
+
+Primary mysql database: mobile_db
+Second mysql database: mobile_second_db
+Rows in mysql_second.connection_test: 1
+
+User:
+ขอผล response สำหรับเอาไปอธิบายอาจารย์
+
+Assistant:
+รันทดสอบใน Docker และได้ผล:
+
+Primary mysql database: mobile_db
+Second mysql database: mobile_second_db
+Rows in mysql_second.connection_test: 2
+
+จากนั้น query เข้า MySQL container ตัวที่สองโดยตรง:
+
+current_database  rows_count
+mobile_second_db  2
+
+id  label         created_at
+2   mysql_second  2026-08-05 07:36:00
+1   mysql_second  2026-08-05 07:27:01
+
+สรุปสำหรับอธิบาย:
+Laravel หนึ่งโปรเจกต์สามารถเชื่อมต่อฐานข้อมูลได้มากกว่าหนึ่งฐาน โดย connection หลัก mysql ชี้ไป mobile_db และ connection ที่สอง mysql_second ชี้ไป mobile_second_db จากการทดสอบ Laravel อ่านชื่อฐานทั้งสองได้ และเขียนข้อมูลลงฐานที่สองได้จริง
+
+User:
+ถามว่าสามารถเอาไปแสดงเป็นรูปธรรมใน web.blade ได้ไหม
+
+Assistant:
+เพิ่ม route:
+
+/db-connections-demo
+
+และเพิ่ม Blade view:
+
+resources/views/db-connections-demo.blade.php
+
+ตอนแรกหน้า demo แสดงชื่อ connection/database และจำนวน row จากฐานที่สอง
+
+ผลทดสอบหน้าเว็บ:
+
+HTTP_STATUS=200
+mobile_db=True
+mobile_second_db=True
+Rows in second database=True
+mysql_second=True
+
+User:
+บอกว่าหน้า web view เข้าใจยาก ขอให้มีอะไรชัดกว่านี้ว่าเป็นคนละ database เป็นชุดข้อมูลก็ได้
+
+Assistant:
+ปรับหน้า Blade ให้เปรียบเทียบสองฝั่ง:
+
+ฝั่งซ้าย:
+ฐานข้อมูลหลักของระบบ
+Connection: mysql
+Database: mobile_db
+Table: users
+แสดงข้อมูลผู้ใช้จากฐานหลัก
+
+ฝั่งขวา:
+ฐานข้อมูลที่สอง
+Connection: mysql_second
+Database: mobile_second_db
+Table: external_training_courses
+แสดงข้อมูลคอร์สตัวอย่างจากฐานที่สอง เช่น EXT-101, EXT-202, EXT-303
+
+ใน route มีการสร้างตาราง external_training_courses ในฐานที่สอง และ seed ข้อมูลตัวอย่างด้วย updateOrInsert
+
+ผลทดสอบ:
+
+HTTP_STATUS=200
+mobile_db=True
+users=True
+mobile_second_db=True
+external_training_courses=True
+EXT-101=True
+
+User:
+ถามว่าจะจัดการข้อมูลทั้งสองตารางยังไง ปกติใช้ phpMyAdmin
+
+Assistant:
+อธิบายว่าจัดการได้ผ่าน phpMyAdmin โดยตอนแรกแยกเป็น:
+
+ฐานหลัก:
+http://localhost:8081
+Host: db
+Database: mobile_db
+User: mobile_user
+Password: secret
+
+ฐานที่สอง:
+http://localhost:8082
+Host: db_second
+Database: mobile_second_db
+User: mobile_second_user
+Password: secret
+
+User:
+ให้จัดการเลย
+
+Assistant:
+เพิ่ม phpMyAdmin ตัวที่สองใน docker-compose.yml ชื่อ phpmyadmin_second แล้วรันขึ้นมา
+
+ผลตรวจ:
+
+http://localhost:8081 = 200 OK
+http://localhost:8082 = 200 OK
+
+User:
+ถามว่าแก้เป็นใช้ database คนละตัวแต่ใช้ port เดียวกันได้ไหม
+
+Assistant:
+ปรับจาก 2 MySQL containers เป็น 1 MySQL container แต่มี 2 databases ภายใน server เดียวกัน
+
+โครงสร้างใหม่:
+
+MySQL container เดียว: mobile_db
+Port ใน Docker: db:3306
+Port จากเครื่อง: localhost:3307
+
+Databases ภายใน MySQL server เดียวกัน:
+1. mobile_db
+2. mobile_second_db
+
+Laravel config:
+
+connection mysql:
+host: db
+port: 3306
+database: mobile_db
+
+connection mysql_second:
+host: db
+port: 3306
+database: mobile_second_db
+
+ปรับ .env:
+
+DB_SECOND_HOST=db
+DB_SECOND_PORT=3306
+DB_SECOND_DATABASE=mobile_second_db
+DB_SECOND_USERNAME=mobile_user
+DB_SECOND_PASSWORD=secret
+
+เพิ่ม init script:
+
+docker/mysql/init/01-create-second-database.sql
+
+เนื้อหา:
+
+CREATE DATABASE IF NOT EXISTS mobile_second_db
+    CHARACTER SET utf8mb4
+    COLLATE utf8mb4_unicode_ci;
+
+GRANT ALL PRIVILEGES ON mobile_second_db.* TO 'mobile_user'@'%';
+FLUSH PRIVILEGES;
+
+สร้าง database ใน container จริงด้วยคำสั่ง MySQL:
+
+CREATE DATABASE IF NOT EXISTS mobile_second_db;
+GRANT ALL PRIVILEGES ON mobile_second_db.* TO 'mobile_user'@'%';
+FLUSH PRIVILEGES;
+
+ลบ orphan containers เก่า:
+mobile_db_second
+mobile_phpmyadmin_second
+
+ผลทดสอบ Laravel หลังเปลี่ยนเป็น port เดียว:
+
+Primary mysql database: mobile_db
+Second mysql database: mobile_second_db
+Rows in mysql_second.connection_test: 1
+
+ผลทดสอบจาก MySQL server ตัวเดียว:
+
+mysql_container  mysql_port
+e328fb06921a     3306
+
+Database (mobile%)
+mobile_db
+mobile_second_db
+
+หน้า web demo ยังใช้ได้:
+
+HTTP_STATUS=200
+mobile_db=True
+mobile_second_db=True
+users=True
+external_training_courses=True
+EXT-101=True
+
+phpMyAdmin เหลือตัวเดียว:
+
+http://localhost:8081
+User: mobile_user
+Password: secret
+
+ใช้จัดการได้ทั้ง mobile_db และ mobile_second_db
+
+User:
+ถามว่า view.blade ได้แก้แล้วใช่ไหม
+
+Assistant:
+ยืนยันว่าแก้แล้ว ไฟล์คือ:
+
+resources/views/db-connections-demo.blade.php
+
+Route ที่เรียกใช้:
+
+routes/web.php
+
+Route:
+
+GET /db-connections-demo
+
+ใน route มีการใช้:
+
+DB::connection('mysql')
+DB::connection('mysql_second')
+
+แล้วส่งข้อมูลให้ view:
+
+primaryDatabase
+secondDatabase
+primaryUsers
+secondCourses
+
+ผลทดสอบหน้าเว็บ:
+
+HTTP_STATUS=200
+ตัวอย่างหน้าเว็บที่ดึงข้อมูลจาก 2 ฐานข้อมูล=True
+mobile_db=True
+mobile_second_db=True
+external_training_courses=True
+EXT-101=True
+
+Current important files changed:
+
+1. config/database.php
+เพิ่ม connection mysql_second
+
+2. .env
+ตั้ง DB_SECOND_* ให้ชี้ไป db:3306 แต่คนละ database
+
+3. docker-compose.yml
+ใช้ MySQL container เดียว และ phpMyAdmin ตัวเดียว
+
+4. docker/mysql/init/01-create-second-database.sql
+สร้าง mobile_second_db และ grant สิทธิ์ให้ mobile_user สำหรับ setup ใหม่
+
+5. routes/web.php
+เพิ่ม route /db-connections-demo ที่ query 2 database
+
+6. resources/views/db-connections-demo.blade.php
+หน้า Blade demo แสดงข้อมูลจาก mobile_db.users และ mobile_second_db.external_training_courses
+
+7. app/Console/Commands/TestMultipleDatabaseConnections.php
+คำสั่งทดสอบ multiple database connection:
+php artisan db:test-multiple-connections
+
+Final explanation for teacher:
+
+Laravel หนึ่งโปรเจกต์สามารถเชื่อมต่อฐานข้อมูลได้มากกว่าหนึ่ง database โดยใช้ connection หลายตัวใน config/database.php ในโปรเจกต์นี้ตั้ง connection หลักชื่อ mysql ไปที่ database mobile_db และ connection ที่สองชื่อ mysql_second ไปที่ database mobile_second_db ทั้งสอง database อยู่บน MySQL server เดียวกันและใช้ port เดียวกันคือ db:3306 ภายใน Docker แต่ Laravel เลือก database ต่างกันผ่านค่า database ของแต่ละ connection
+
+หน้า /db-connections-demo แสดงให้เห็นแบบเป็นรูปธรรม โดยฝั่งซ้ายดึงข้อมูลจาก mobile_db.users และฝั่งขวาดึงข้อมูลจาก mobile_second_db.external_training_courses มาแสดงใน Blade view เดียวกัน ผลทดสอบหน้าเว็บตอบ HTTP 200 และพบข้อมูลจากทั้งสอง database จริง จึงยืนยันได้ว่าสามารถใช้ multiple database connection ใน Laravel ได้จริงทั้งใน command line และหน้าเว็บ

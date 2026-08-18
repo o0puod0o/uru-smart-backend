@@ -1,0 +1,250 @@
+INFO SERVER DEPLOY ATTEMPT + FRONTEND ENDPOINTS
+วันที่: 2026-08-18
+
+สถานะโปรเจกต์ที่เตรียม deploy:
+- Branch: laravel10-urusmart-deploy
+- Laravel: 10.50.2
+- PHP ที่ต้องใช้: 8.1+
+- Server info/urusmart ตรวจพบ PHP: 8.2.12
+- Test local: php artisan test ผ่าน 99 tests
+- เพิ่ม SSO callback แล้ว: GET /auth/callback
+
+============================================================
+1) ผลเช็ค server ล่าสุด
+============================================================
+
+Domain จริง:
+https://urusmart.uru.ac.th
+
+Health:
+GET https://urusmart.uru.ac.th/
+Response:
+{
+  "name": "Mobile Backend",
+  "status": "ok"
+}
+
+API Ping:
+GET https://urusmart.uru.ac.th/api/ping
+Response:
+{
+  "pong": true
+}
+
+Runtime:
+- X-Powered-By: PHP/8.2.12
+
+info path:
+GET https://info.uru.ac.th/server/php-runtime-deep-check.php
+พบว่า PHP_BINARY เป็น:
+C:\PHP\php-8.2.12\php-cgi.exe
+
+ข้อควรระวัง:
+- PUT บาง path ยังเคยเห็น PHP/7.4.9 อยู่
+- Frontend ควรใช้ POST + X-HTTP-Method-Override สำหรับ PUT/PATCH/DELETE จนกว่า IIS จะตั้ง handler ทุก method เป็น PHP 8.2.12 ทั้งหมด
+
+============================================================
+2) สถานะ FTPS deploy จากเครื่องนี้
+============================================================
+
+ลองเชื่อม FTPS:
+ftps://info.uru.ac.th:990/
+
+ผล:
+- Login/control channel เข้าได้บางส่วน
+- แต่ data channel สำหรับ list/upload ติด 425
+- active mode ติด FTP server connect data port ไม่ได้
+
+สรุป:
+ยังไม่ควรฝืน upload ด้วย curl จากเครื่องนี้ เพราะเสี่ยง upload ค้างหรือไฟล์ขึ้นไม่ครบ
+
+แนวทาง:
+1. ใช้ FileZilla/WinSCP จากเครื่องที่ต่อ FTPS ได้
+2. หรือให้ผู้ดูแล server เปิด passive FTP ports ให้ client ต่อได้
+3. หรือให้มี SSH/terminal บน server แล้ว git pull/composer install แทน
+
+============================================================
+3) SSO จริง
+============================================================
+
+ค่าจากอาจารย์:
+clientId = urusmart
+clientSecret = state
+redirectUri = https://urusmart.uru.ac.th/auth/callback
+
+Callback endpoint ที่เตรียมไว้:
+GET https://urusmart.uru.ac.th/auth/callback
+
+รองรับ query:
+- code=... ใช้สำหรับ authorization_code flow
+- access_token=... ใช้กรณี SSO ส่ง token กลับมาตรง ๆ
+
+หลัง callback สำเร็จ backend จะ:
+1. ตรวจ token/code กับ SSO
+2. ดึง user info
+3. sync user เข้า database กลาง
+4. ออก Sanctum token ให้ mobile app
+
+============================================================
+4) Sanctum token
+============================================================
+
+Token ที่ mobile app ใช้คือ Laravel Sanctum token
+
+Expiration:
+SANCTUM_EXPIRATION=43200
+
+เท่ากับ:
+43200 นาที = 30 วัน
+
+ใช้ได้ทั้ง:
+- อ่านข้อมูล
+- เขียนข้อมูล
+
+แต่ backend จะตรวจสิทธิ์อีกชั้น เช่น:
+- แก้ไขได้เฉพาะข้อมูลตัวเอง
+- ตาราง SSO/expert2.users/lrdsystem2.users/lrdsystem2.researchers เป็น read-only
+
+============================================================
+5) Endpoint สำหรับ frontend
+============================================================
+
+BASE_URL:
+https://urusmart.uru.ac.th
+
+Health:
+GET /
+GET /api/ping
+
+SSO Callback:
+GET /auth/callback
+
+Login แบบ API fallback/mock:
+POST /api/auth/login
+
+Body:
+{
+  "email": "user@live.uru.ac.th",
+  "password": "password"
+}
+
+Login แบบมี SSO access_token แล้ว:
+POST /api/auth/sso-token
+
+Body:
+{
+  "access_token": "{sso_access_token}"
+}
+
+หลัง login สำเร็จ ทุก protected API ใช้:
+Authorization: Bearer {sanctum_token}
+Accept: application/json
+
+Profile:
+GET    /api/me
+PUT    /api/me
+POST   /api/me/photo
+DELETE /api/me/photo
+GET    /api/me/external-profile
+
+Profile Search:
+GET /api/profile-search
+GET /api/profile-search?expertise_group_id=6
+GET /api/profile-search?group_id=6
+GET /api/profile-search?expertise=วิศวกรรมศาสตร์
+
+Notifications:
+GET    /api/notifications
+GET    /api/notifications/unread-count
+PATCH  /api/notifications/{id}/read
+POST   /api/notifications/read-all
+DELETE /api/notifications/{id}
+
+Push token:
+POST   /api/push-token
+DELETE /api/push-token
+
+Expert profile module:
+GET/POST       /api/educations
+GET/PUT/DELETE /api/educations/{id}
+GET/POST       /api/interests
+GET/PUT/DELETE /api/interests/{id}
+GET/POST       /api/expertises
+DELETE         /api/expertises/{id}
+GET/POST       /api/researches
+GET/PUT/DELETE /api/researches/{id}
+GET/POST       /api/journals
+GET/PUT/DELETE /api/journals/{id}
+GET/POST       /api/books
+GET/PUT/DELETE /api/books/{id}
+GET/POST       /api/patents
+GET/PUT/DELETE /api/patents/{id}
+GET/POST       /api/awards
+GET/PUT/DELETE /api/awards/{id}
+GET/POST       /api/academics
+GET/PUT/DELETE /api/academics/{id}
+GET/POST       /api/trainings
+GET/PUT/DELETE /api/trainings/{id}
+GET/POST       /api/workexes
+GET/PUT/DELETE /api/workexes/{id}
+GET/POST       /api/boardexes
+GET/PUT/DELETE /api/boardexes/{id}
+
+LRD research module:
+GET /api/lrd/facultys
+GET /api/lrd/branchs
+GET /api/lrd/paperindexs
+
+GET/POST       /api/lrd/educations
+GET/PUT/DELETE /api/lrd/educations/{id}
+GET/POST       /api/lrd/papers
+GET/PUT/DELETE /api/lrd/papers/{id}
+GET/POST       /api/lrd/projects
+GET/PUT/DELETE /api/lrd/projects/{id}
+GET/POST       /api/lrd/researchs
+GET/PUT/DELETE /api/lrd/researchs/{id}
+GET/POST       /api/lrd/proposals
+GET/PUT/DELETE /api/lrd/proposals/{id}
+
+============================================================
+6) Axios method override สำหรับ frontend
+============================================================
+
+ถ้า IIS ยังทำให้ PUT/PATCH/DELETE ไป PHP 7.4 ให้ใช้ interceptor นี้:
+
+api.interceptors.request.use((config) => {
+  const method = config.method?.toLowerCase();
+
+  if (['put', 'patch', 'delete'].includes(method)) {
+    config.headers['X-HTTP-Method-Override'] = method.toUpperCase();
+    config.method = 'post';
+    config.data ??= {};
+  }
+
+  return config;
+});
+
+============================================================
+7) Database ที่ระบบต้องใช้
+============================================================
+
+ระบบใช้ 3 logical connections:
+
+1. mobile/main database
+   ใช้เก็บ user กลาง, token, notification, mobile-owned data
+
+2. expert database
+   ใช้ดึง/จัดการข้อมูล expert profile
+   ตาราง users ใน expert เป็น read-only
+
+3. lrd database
+   ใช้ module งานวิจัย
+   ตาราง users และ researchers เป็น read-only
+
+ต้องยืนยันว่าบน server มี database เหล่านี้:
+- urusmart
+- expert2
+- lrdsystem2
+
+หรือถ้าใช้ credential เดียว ต้องให้ user นั้นมีสิทธิ์เข้าทั้ง 3 database
+

@@ -1,0 +1,78 @@
+openapi: 3.0.3
+info:
+  title: URU Smart Project Management API
+  version: 1.0.0
+servers:
+  - url: http://localhost:8001/api
+security:
+  - bearerAuth: []
+paths:
+  /journals:
+    get:
+      summary: List journals; scope=all hides another owner's budget
+      parameters:
+        - {name: scope, in: query, schema: {type: string, enum: [mine, all]}}
+        - {name: q, in: query, schema: {type: string}}
+        - {name: status, in: query, schema: {type: string}}
+        - {name: year, in: query, schema: {type: string}}
+        - {name: per_page, in: query, schema: {type: integer, maximum: 100}}
+      responses: {'200': {description: Paginated journals}}
+    post:
+      summary: Create journal as authenticated user
+      responses: {'201': {description: Created}, '422': {description: Validation error}}
+  /journals/{id}:
+    parameters: [{name: id, in: path, required: true, schema: {type: integer}}]
+    get: {summary: Show owned journal, responses: {'200': {description: OK}, '403': {description: Forbidden}}}
+    put: {summary: Update owned journal, responses: {'200': {description: OK}}}
+    delete: {summary: Delete owned journal, responses: {'200': {description: Deleted}}}
+  /proposals:
+    get: {summary: List proposals with scope/filter/pagination, responses: {'200': {description: OK}}}
+    post: {summary: Create proposal; owner comes from token, responses: {'201': {description: Created}}}
+  /proposals/{id}:
+    parameters: [{name: id, in: path, required: true, schema: {type: integer}}]
+    get: {summary: Show owned proposal, responses: {'200': {description: OK}}}
+    put: {summary: Update proposal; approved/rejected require admin, responses: {'200': {description: OK}, '403': {description: Forbidden}}}
+    delete: {summary: Delete owned proposal, responses: {'200': {description: Deleted}}}
+  /reports:
+    get: {summary: List reports with scope/filter/pagination, responses: {'200': {description: OK}}}
+    post: {summary: Create report, responses: {'201': {description: Created}}}
+  /reports/{id}:
+    parameters: [{name: id, in: path, required: true, schema: {type: integer}}]
+    get: {summary: Show owned report, responses: {'200': {description: OK}}}
+    put: {summary: Update report, responses: {'200': {description: OK}}}
+    delete: {summary: Delete report, responses: {'200': {description: Deleted}}}
+  /files:
+    get: {summary: List files for an authorized entity, responses: {'200': {description: OK}}}
+    post: {summary: Upload validated multipart file, responses: {'201': {description: Created}}}
+  /files/{id}/download:
+    get:
+      summary: Download file as owner or admin
+      parameters: [{name: id, in: path, required: true, schema: {type: integer}}]
+      responses: {'200': {description: File}, '403': {description: Forbidden}}
+  /files/{id}:
+    delete:
+      summary: Delete file as owner or admin
+      parameters: [{name: id, in: path, required: true, schema: {type: integer}}]
+      responses: {'200': {description: Deleted}}
+  /notifications/unread-count:
+    get: {summary: Unread notification count, responses: {'200': {description: OK}}}
+  /notifications/{id}:
+    delete:
+      summary: Delete own notification
+      parameters: [{name: id, in: path, required: true, schema: {type: integer}}]
+      responses: {'200': {description: Deleted}}
+  /admin/users:
+    get: {summary: Admin user list, responses: {'200': {description: OK}, '403': {description: Admin only}}}
+  /admin/users/{id}:
+    parameters: [{name: id, in: path, required: true, schema: {type: integer}}]
+    get: {summary: Admin show user, responses: {'200': {description: OK}}}
+    put: {summary: Admin update user, responses: {'200': {description: OK}}}
+    delete: {summary: Admin delete user, responses: {'200': {description: Deleted}}}
+  /admin/users/{id}/role:
+    patch:
+      summary: Change role and write audit log
+      parameters: [{name: id, in: path, required: true, schema: {type: integer}}]
+      responses: {'200': {description: OK}}
+components:
+  securitySchemes:
+    bearerAuth: {type: http, scheme: bearer}

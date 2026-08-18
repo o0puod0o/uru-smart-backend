@@ -3,12 +3,15 @@
 namespace App\Observers;
 
 use App\Models\Announcement;
-use App\Services\PushNotificationService;
+use App\Services\NotificationDeliveryService;
 
 class AnnouncementObserver
 {
-    public function __construct(private PushNotificationService $pushNotificationService)
+    private NotificationDeliveryService $notificationDeliveryService;
+
+    public function __construct(NotificationDeliveryService $notificationDeliveryService)
     {
+        $this->notificationDeliveryService = $notificationDeliveryService;
     }
 
     public function created(Announcement $announcement): void
@@ -18,14 +21,7 @@ class AnnouncementObserver
 
     public function updated(Announcement $announcement): void
     {
-        if (! $announcement->wasChanged([
-            'title',
-            'message',
-            'tag',
-            'icon',
-            'published_at',
-            'is_published',
-        ])) {
+        if (! $announcement->wasChanged('is_published') || ! $announcement->is_published) {
             return;
         }
 
@@ -38,9 +34,10 @@ class AnnouncementObserver
             return;
         }
 
-        $this->pushNotificationService->sendToAllUsers(
+        $this->notificationDeliveryService->deliverToAllUsers(
             $announcement->title,
             $announcement->message,
+            'announcement',
             [
                 'type' => 'announcement',
                 'event' => $event,

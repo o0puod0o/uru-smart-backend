@@ -1,0 +1,114 @@
+Laravel 8 PHP 7.4 Server Test Result
+ทดสอบวันที่: 2026-08-18
+
+เป้าหมาย:
+ทดสอบว่า server info.uru.ac.th ที่ใช้ PHP 7.4.9 สามารถรัน Laravel 8 ได้จริงหรือไม่
+เพื่อใช้เป็นแนวทาง fallback กรณี Laravel 10 ใช้งานไม่ได้บน server นี้
+
+URL ทดสอบ:
+https://info.uru.ac.th/server/l8test
+
+สรุปผล:
+ผ่าน
+
+Laravel 8 test app รันบน server จริงได้แล้ว โดย response ยืนยันว่า:
+- PHP: 7.4.9
+- Laravel framework: 8.83.29
+- mode: laravel8-php74-test
+
+Endpoint ที่ทดสอบแล้ว:
+
+1) Ping
+GET https://info.uru.ac.th/server/l8test/api/ping
+
+Response:
+HTTP/1.1 200 OK
+{
+  "pong": true,
+  "framework": "8.83.29",
+  "php": "7.4.9",
+  "mode": "laravel8-php74-test"
+}
+
+2) CORS Preflight
+OPTIONS https://info.uru.ac.th/server/l8test/api/auth/login
+
+Response:
+HTTP/1.1 204 No Content
+Access-Control-Allow-Origin: *
+Access-Control-Allow-Methods: *
+Access-Control-Allow-Headers: content-type,authorization
+
+3) Login
+POST https://info.uru.ac.th/server/l8test/api/auth/login
+
+Body:
+email=phanuwat@live.uru.ac.th
+password=password
+
+Response:
+HTTP/1.1 200 OK
+{
+  "token": "l8-mock...",
+  "user": {
+    "id": 4,
+    "code": "900304",
+    "full_name_th": "นายภานุวัฒน์ ขันจา",
+    "full_name_en": "Phanuwat Khanwat",
+    "email": "phanuwat@live.uru.ac.th",
+    "faculty_name_th": "Uttaradit Rajabhat University",
+    "department_name_th": "Demo Department",
+    "picture": null
+  }
+}
+
+4) Me
+GET https://info.uru.ac.th/server/l8test/api/me
+Header:
+Authorization: Bearer {token}
+
+Response:
+HTTP/1.1 200 OK
+{
+  "data": {
+    "id": 4,
+    "code": "900304",
+    "full_name_th": "นายภานุวัฒน์ ขันจา",
+    "full_name_en": "Phanuwat Khanwat",
+    "email": "phanuwat@live.uru.ac.th",
+    "username": "3530900177802",
+    "citizen_id": "3530900177802",
+    "lrd_researcher_id": 1004
+  }
+}
+
+5) Profile Search by expertise_group_id
+GET https://info.uru.ac.th/server/l8test/api/profile-search?expertise_group_id=604
+
+Response:
+HTTP/1.1 200 OK
+คืนเฉพาะรายการที่มี expertises.group_id = 604
+และ response มี field expertises กลับมาด้วย
+
+6) Profile Search by expertise name
+GET https://info.uru.ac.th/server/l8test/api/profile-search?expertise=Artificial%20Intelligence
+
+Response:
+HTTP/1.1 200 OK
+คืนเฉพาะรายการที่มี expertises.name = Artificial Intelligence
+
+7) Logout
+POST https://info.uru.ac.th/server/l8test/api/auth/logout
+Header:
+Authorization: Bearer {token}
+
+Response:
+HTTP/1.1 200 OK
+{
+  "message": "Logged out successfully"
+}
+
+หมายเหตุ:
+- ตัวนี้เป็น Laravel 8 test app สำหรับพิสูจน์ปัญหา PHP version เท่านั้น
+- Laravel 10 ตัวหลักยังติด PHP version บน server เพราะ server ใช้ PHP 7.4.9 แต่ Laravel 10 ต้องใช้ PHP 8.1/8.2 ขึ้นไปตาม dependency
+- ถ้า server เปลี่ยน PHP ไม่ได้ ทางเลือกที่ใช้งานได้คือปรับ backend production เป็น Laravel 8-compatible หรือใช้ temporary PHP 7.4 mock/shim ระหว่างรอ server จริง

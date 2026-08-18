@@ -117,6 +117,46 @@ return new class extends Migration
         $table->foreign('user_id')->references('id')->on('users');
     });
 
+    if (app()->environment('testing')) {
+        Schema::create('education', function (Blueprint $table) {
+            $table->id();
+            $table->string('id_card')->nullable()->index();
+            $table->integer('degree');
+            $table->string('course', 200);
+            $table->string('university', 500);
+            $table->string('year', 4);
+            $table->timestamp('dateAdd')->nullable();
+        });
+
+        Schema::create('has_interest', function (Blueprint $table) {
+            $table->id();
+            $table->string('id_card')->nullable()->index();
+            $table->text('name');
+            $table->datetime('dateAdd')->nullable();
+        });
+
+        Schema::create('has_research', function (Blueprint $table) {
+            $table->id();
+            $table->string('id_card')->nullable()->index();
+            $table->text('name');
+            $table->string('year', 4);
+            $table->integer('research_type_id')->nullable();
+            $table->integer('research_PMU_type_id')->nullable()->default(0);
+            $table->integer('research_level_id')->nullable()->default(0);
+            $table->datetime('dateAdd')->nullable();
+        });
+
+        Schema::create('has_journal', function (Blueprint $table) {
+            $table->id();
+            $table->string('id_card')->nullable()->index();
+            $table->text('name');
+            $table->string('year', 4);
+            $table->integer('journal_type_id');
+            $table->datetime('dateAdd')->nullable();
+            $table->text('url')->nullable();
+        });
+    }
+
     Schema::create('has_books', function (Blueprint $table) {
         $table->id();
         $table->unsignedBigInteger('user_id');
@@ -243,6 +283,10 @@ public function down(): void
     Schema::dropIfExists('has_researches');
     Schema::dropIfExists('has_interests');
     Schema::dropIfExists('educations');
+    Schema::dropIfExists('has_journal');
+    Schema::dropIfExists('has_research');
+    Schema::dropIfExists('has_interest');
+    Schema::dropIfExists('education');
     Schema::dropIfExists('has_experts');
     Schema::dropIfExists('positions');
     Schema::dropIfExists('position_types');

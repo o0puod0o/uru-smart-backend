@@ -19,7 +19,9 @@ class ProfileSearchTest extends TestCase
 
     private function makeUser(array $attrs = []): User
     {
-        return User::factory()->create($attrs);
+        return User::factory()->create(array_merge([
+            'citizen_id' => sprintf('%013d', random_int(1000000000000, 9999999999999)),
+        ], $attrs));
     }
 
     protected function setUp(): void
@@ -39,9 +41,10 @@ class ProfileSearchTest extends TestCase
         $this->makeUser(['first_name_th' => 'อาจารย์หนึ่ง']);
         $this->makeUser(['first_name_th' => 'อาจารย์สอง']);
 
-        $this->getJson('/api/profile-search')
-            ->assertOk()
-            ->assertJsonIsArray();
+        $response = $this->getJson('/api/profile-search');
+
+        $response->assertOk();
+        $this->assertIsArray($response->json());
     }
 
     public function test_search_by_first_name(): void
@@ -49,10 +52,10 @@ class ProfileSearchTest extends TestCase
         $this->makeUser(['first_name_th' => 'สมชาย', 'last_name_th' => 'ใจดี']);
         $this->makeUser(['first_name_th' => 'สมหญิง', 'last_name_th' => 'รักดี']);
 
-        $this->getJson('/api/profile-search?search_from=first_name&keyword=สมชาย')
-            ->assertOk()
-            ->assertJsonCount(1)
-            ->assertJsonPath('0.full_name_th', fn ($v) => str_contains($v, 'สมชาย'));
+        $response = $this->getJson('/api/profile-search?search_from=first_name&keyword=สมชาย');
+
+        $response->assertOk()->assertJsonCount(1);
+        $this->assertStringContainsString('สมชาย', $response->json('0.full_name_th'));
     }
 
     public function test_search_by_last_name(): void
@@ -95,12 +98,59 @@ class ProfileSearchTest extends TestCase
             ->assertJsonPath('0.id', $target->id);
     }
 
+    public function test_search_by_expertise_group_id_aliases(): void
+    {
+        $target = $this->makeUser();
+        $other = $this->makeUser();
+
+        $expert = HasExpert::create(['name' => 'Engineering', 'date_add' => now()]);
+        $otherExpert = HasExpert::create(['name' => 'Education', 'date_add' => now()]);
+
+        DB::table('users_expert')->insert([
+            ['user_id' => $target->id, 'expert_id' => $expert->expert_id],
+            ['user_id' => $other->id, 'expert_id' => $otherExpert->expert_id],
+        ]);
+
+        $this->getJson("/api/profile-search?expertise_group_id={$expert->expert_id}")
+            ->assertOk()
+            ->assertJsonCount(1)
+            ->assertJsonPath('0.id', $target->id)
+            ->assertJsonPath('0.expertises.0.id', $expert->expert_id)
+            ->assertJsonPath('0.expertises.0.group_id', $expert->expert_id)
+            ->assertJsonPath('0.expertises.0.name', 'Engineering');
+
+        $this->getJson("/api/profile-search?group_id={$expert->expert_id}")
+            ->assertOk()
+            ->assertJsonCount(1)
+            ->assertJsonPath('0.id', $target->id);
+    }
+
+    public function test_search_by_exact_expertise_name_alias(): void
+    {
+        $target = $this->makeUser();
+        $other = $this->makeUser();
+
+        $expert = HasExpert::create(['name' => 'วิศวกรรมศาสตร์', 'date_add' => now()]);
+        $otherExpert = HasExpert::create(['name' => 'ศึกษาศาสตร์', 'date_add' => now()]);
+
+        DB::table('users_expert')->insert([
+            ['user_id' => $target->id, 'expert_id' => $expert->expert_id],
+            ['user_id' => $other->id, 'expert_id' => $otherExpert->expert_id],
+        ]);
+
+        $this->getJson('/api/profile-search?expertise='.urlencode('วิศวกรรมศาสตร์'))
+            ->assertOk()
+            ->assertJsonCount(1)
+            ->assertJsonPath('0.id', $target->id)
+            ->assertJsonPath('0.expertises.0.name', 'วิศวกรรมศาสตร์');
+    }
+
     public function test_search_by_interest(): void
     {
         $target = $this->makeUser();
         $this->makeUser();
 
-        HasInterest::create(['user_id' => $target->id, 'name' => 'AI Ethics', 'dateAdd' => now()]);
+        HasInterest::create(['id_card' => $target->citizen_id, 'name' => 'AI Ethics', 'dateAdd' => now()]);
 
         $this->getJson('/api/profile-search?interest=AI+Ethics')
             ->assertOk()
@@ -114,7 +164,7 @@ class ProfileSearchTest extends TestCase
         $this->makeUser();
 
         HasResearch::create([
-            'user_id'              => $target->id,
+            'id_card'              => $target->citizen_id,
             'name'                 => 'Deep Learning Applications',
             'year'                 => '2024',
             'research_type_id'     => 1,
