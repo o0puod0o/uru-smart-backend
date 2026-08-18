@@ -297,3 +297,23 @@ api.interceptors.request.use((config) => {
 - lrdsystem2
 
 หรือถ้าใช้ credential เดียว ต้องให้ user นั้นมีสิทธิ์เข้าทั้ง 3 database
+
+ผลเช็ค database access ล่าสุด:
+
+phpMyAdmin:
+https://aritapp.uru.ac.th/mysqladmin/
+ผล: เปิดหน้า login ได้ และใช้ PHP/8.2.12
+
+MySQL port:
+aritapp.uru.ac.th:3306
+ผล: TcpTestSucceeded=True
+
+Direct PDO จาก Docker:
+ผล: ไม่สำเร็จ เพราะ MySQL ตอบ
+Host '10.254.0.2' is blocked because of many connection errors; unblock with 'mysqladmin flush-hosts'
+
+สรุป:
+- port MySQL เปิด
+- แต่ host ของ Docker/local network ถูก MySQL block
+- ถ้าจะ import/check database ผ่าน command line ต้องให้ผู้ดูแล server run mysqladmin flush-hosts หรือใช้ phpMyAdmin แทน
+- ยังไม่ควร import expert2.sql/lrdsystem2.sql จนกว่าจะยืนยันว่าจะใช้ database แยก 3 ตัว และ credential มีสิทธิ์ครบ
