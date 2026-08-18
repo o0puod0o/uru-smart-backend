@@ -34,6 +34,31 @@ Response:
 Runtime:
 - X-Powered-By: PHP/8.2.12
 
+ผลเช็ค production domain ล่าสุดหลังเตรียม package:
+
+GET https://urusmart.uru.ac.th/auth/callback
+ผล:
+404 The route auth/callback could not be found.
+
+หมายความว่า:
+- domain ใช้ Laravel/PHP 8.2.12 แล้ว
+- แต่ code ใหม่ที่เพิ่ม /auth/callback ยังไม่ได้ deploy ขึ้น server
+
+OPTIONS https://urusmart.uru.ac.th/api/auth/login
+ผล:
+200 จาก IIS และยังไม่มี Access-Control-Allow-Origin
+
+หมายความว่า:
+- public/web.config + public/cors-preflight.php จาก package ใหม่ยังไม่ได้ขึ้น server หรือ IIS ยังไม่อ่าน rule นี้
+
+PUT https://urusmart.uru.ac.th/api/me
+ผล:
+404 ว่างจาก IIS
+
+หมายความว่า:
+- PUT ยังอาจไม่ได้ถูกส่งเข้า Laravel route ตามปกติ
+- frontend ควรใช้ POST + X-HTTP-Method-Override จนกว่า IIS handler/rewrite จะถูกตั้งครบ
+
 info path:
 GET https://info.uru.ac.th/server/php-runtime-deep-check.php
 พบว่า PHP_BINARY เป็น:
@@ -57,6 +82,31 @@ ftps://info.uru.ac.th:990/
 
 สรุป:
 ยังไม่ควรฝืน upload ด้วย curl จากเครื่องนี้ เพราะเสี่ยง upload ค้างหรือไฟล์ขึ้นไม่ครบ
+
+Deploy package ที่สร้างไว้:
+.deploy_tmp/urusmart-laravel10-deploy.zip
+
+ขนาดโดยประมาณ:
+36.6 MB
+
+ใน package มี:
+- app
+- bootstrap
+- config
+- database
+- public
+- resources
+- routes
+- storage
+- vendor
+- artisan
+- composer.json
+- composer.lock
+
+ใน package ไม่มี:
+- .env
+- public/storage symlink
+- logs/cache runtime temp
 
 แนวทาง:
 1. ใช้ FileZilla/WinSCP จากเครื่องที่ต่อ FTPS ได้
@@ -247,4 +297,3 @@ api.interceptors.request.use((config) => {
 - lrdsystem2
 
 หรือถ้าใช้ credential เดียว ต้องให้ user นั้นมีสิทธิ์เข้าทั้ง 3 database
-
