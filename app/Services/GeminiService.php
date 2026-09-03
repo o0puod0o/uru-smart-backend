@@ -2,278 +2,225 @@
 
 namespace App\Services;
 
-use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 class GeminiService
 {
-    private $apiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent';
+    private array $blockedPersonalDataKeywords = [
+        'ข้อมูลส่วนตัว',
+        'ข้อมูลบุคคล',
+        'ข้อมูลผู้ใช้',
+        'ข้อมูลคน',
+        'รายชื่อ',
+        'ชื่อ นามสกุล',
+        'ชื่ออาจารย์',
+        'ชื่อบุคลากร',
+        'นามสกุล',
+        'เบอร์โทร',
+        'โทรศัพท์',
+        'อีเมล',
+        'email',
+        'เลขบัตร',
+        'บัตรประชาชน',
+        'รหัสบัตร',
+        'รหัสนักศึกษา',
+        'รหัสบุคลากร',
+        'citizen',
+        'id card',
+        'database',
+        'ตาราง users',
+        'users table',
+        'expert2.users',
+        'lrdsystem2.users',
+        'researchers',
+    ];
 
-    private function getApiKey()
+    public function chat(string $message, ?array $history = null, ?string $model = null): ?string
     {
-        return Config::get('services.gemini.api_key');
-    }
-
-    /**
-     * Get university context from database
-     */
-    private function getUniversityContext(): string
-    {
-        $context = "### ข้อมูลมหาวิทยาลัยราชภัฏอุตรดิตถ์\n\n";
+        $resolvedModel = $this->resolveModel($model);
 
         try {
-            // Get faculties
-            $faculties = DB::table('users')
-                ->select('faculty_name_th')
-                ->distinct()
-                ->whereNotNull('faculty_name_th')
-                ->pluck('faculty_name_th')
-                ->map(fn($f) => $this->sanitizeText($f))
-                ->unique();
-
-            $context .= "**คณะ/วิทยาลัย:** " . $faculties->join(', ') . "\n\n";
-
-            // Get departments
-            $departments = DB::table('users')
-                ->select('department_name_th')
-                ->distinct()
-                ->whereNotNull('department_name_th')
-                ->pluck('department_name_th')
-                ->map(fn($d) => $this->sanitizeText($d))
-                ->unique();
-
-            $context .= "**สาขาวิชา/แผนก:** " . $departments->join(', ') . "\n\n";
-
-            // Get staff count
-            $staffCount = DB::table('users')->count();
-            $context .= "**จำนวนบุคลากร:** " . $staffCount . " คน\n\n";
-
-            // Get positions
-            $positions = DB::table('users')
-                ->select('position')
-                ->distinct()
-                ->whereNotNull('position')
-                ->pluck('position')
-                ->map(fn($p) => $this->sanitizeText($p))
-                ->unique();
-
-            if ($positions->count() > 0) {
-                $context .= "**ตำแหน่ง:** " . $positions->join(', ') . "\n\n";
+            if ($this->asksForPersonalOrDatabaseData($message)) {
+                return 'ขออภัยครับ ฉันไม่สามารถเปิดเผยหรือค้นหาข้อมูลส่วนตัว ข้อมูลผู้ใช้ หรือข้อมูลของบุคคลในฐานข้อมูลได้ แต่สามารถช่วยตอบคำถามทั่วไปหรืออธิบายระบบในภาพรวมได้ครับ';
             }
 
-            // Get announcements summary
-            $announcements = DB::table('announcements')
-                ->select('title', 'message')
-                ->where('is_published', true)
-                ->orderByDesc('published_at')
-                ->limit(3)
-                ->get();
-
-            if ($announcements->count() > 0) {
-                $context .= "**ประกาศล่าสุด:**\n";
-                foreach ($announcements as $ann) {
-                    $title = $this->sanitizeText($ann->title);
-                    $message = $this->sanitizeText(substr($ann->message, 0, 50));
-                    $context .= "- " . $title . ": " . $message . "\n";
-                }
-                $context .= "\n";
-            }
-
-            // Get research count
-            $researchCount = DB::table('has_researches')->distinct('user_id')->count();
-            $context .= "**จำนวนงานวิจัย:** " . $researchCount . " เรื่อง\n";
-
-        } catch (\Exception $e) {
-            \Log::error('Error building university context: ' . $e->getMessage());
-        }
-
-        return $context;
-    }
-
-    /**
-     * Send message to Gemini API
-     */
-    public function chat(string $message, ?array $history = null): ?string
-    {
-        try {
-            $systemPrompt = $this->buildSystemPrompt();
-
-            // Build conversation history
-            $contents = [];
-
-            // Add system context as first user message
-            $contents[] = [
-                'role' => 'user',
-                'parts' => [
-                    ['text' => $systemPrompt]
-                ]
+            $messages = [
+                [
+                    'role' => 'system',
+                    'content' => $this->buildSystemPrompt(),
+                ],
             ];
 
-            // Add assistant acknowledgment
-            $contents[] = [
-                'role' => 'model',
-                'parts' => [
-                    ['text' => 'เข้าใจแล้ว ฉันจะตอบคำถามเกี่ยวกับมหาวิทยาลัยราชภัฏอุตรดิตถ์โดยใช้ข้อมูลที่ให้มา']
-                ]
-            ];
-
-            // Add previous history
             if ($history && is_array($history)) {
                 foreach ($history as $item) {
-                    $contents[] = [
-                        'role' => $item['role'] === 'user' ? 'user' : 'model',
-                        'parts' => [
-                            ['text' => $this->sanitizeText($item['content'] ?? '')]
-                        ]
-                    ];
+                    $role = ($item['role'] ?? '') === 'assistant' ? 'assistant' : 'user';
+                    $content = $this->sanitizeText((string) ($item['content'] ?? ''));
+
+                    if ($content !== '' && ! $this->asksForPersonalOrDatabaseData($content)) {
+                        $messages[] = [
+                            'role' => $role,
+                            'content' => $content,
+                        ];
+                    }
                 }
             }
 
-            // Add current message
-            $contents[] = [
+            $messages[] = [
                 'role' => 'user',
-                'parts' => [
-                    ['text' => $this->sanitizeText($message)]
-                ]
+                'content' => $this->sanitizeText($message),
             ];
 
-            // Send to Gemini API
-            $apiUrl = $this->apiUrl . '?key=' . urlencode($this->getApiKey());
-
-            $response = Http::withHeaders([
-                'Content-Type' => 'application/json',
-            ])->post($apiUrl, [
-                'contents' => $contents,
-                'generationConfig' => [
+            $response = Http::withToken($this->apiKey())
+                ->acceptJson()
+                ->withoutVerifying()
+                ->timeout(30)
+                ->post($this->chatCompletionsUrl(), [
+                    'model' => $resolvedModel,
+                    'messages' => $messages,
                     'temperature' => 0.7,
-                    'topK' => 40,
-                    'topP' => 0.95,
-                    'maxOutputTokens' => 2048,
-                ]
-            ]);
+                    'max_tokens' => 1024,
+                    'stream' => false,
+                ]);
 
-            if ($response->successful()) {
-                $data = $response->json();
+            if (! $response->successful()) {
+                Log::error('URU AI Space API Response', [
+                    'status' => $response->status(),
+                    'body' => $response->body(),
+                ]);
 
-                // Extract response text
-                if (isset($data['candidates'][0]['content']['parts'][0]['text'])) {
-                    return $data['candidates'][0]['content']['parts'][0]['text'];
-                }
-            } else {
-                \Log::error('Gemini API Response: ' . $response->body());
+                return null;
             }
 
-            return null;
+            $data = $response->json();
+            $reply = $data['choices'][0]['message']['content'] ?? null;
 
-        } catch (\Exception $e) {
-            \Log::error('Gemini API Error: ' . $e->getMessage());
+            if (! is_string($reply) || trim($reply) === '') {
+                return null;
+            }
+
+            if ($this->containsPersonalDataLeak($reply)) {
+                return 'ขออภัยครับ ฉันไม่สามารถเปิดเผยข้อมูลส่วนตัวหรือข้อมูลของบุคคลในฐานข้อมูลได้ครับ';
+            }
+
+            return $reply;
+        } catch (\Throwable $e) {
+            Log::error('URU AI Space Chat Error', ['error' => $e->getMessage()]);
+
             return null;
         }
     }
 
-    /**
-     * Sanitize text for UTF-8 encoding
-     */
+    private function apiKey(): string
+    {
+        return (string) Config::get('services.ai.api_key', Config::get('services.gemini.api_key'));
+    }
+
+    public function models(): array
+    {
+        $configuredModels = Config::get('services.ai.models', []);
+        $models = [];
+
+        if (is_array($configuredModels)) {
+            foreach ($configuredModels as $model) {
+                if (! is_array($model) || empty($model['id'])) {
+                    continue;
+                }
+
+                $id = (string) $model['id'];
+                $models[$id] = [
+                    'id' => $id,
+                    'display_name' => (string) ($model['display_name'] ?? $id),
+                    'provider' => (string) ($model['provider'] ?? 'URU AI Space'),
+                    'description' => (string) ($model['description'] ?? ''),
+                ];
+            }
+        }
+
+        $defaultModel = $this->model();
+
+        if ($defaultModel !== '' && ! isset($models[$defaultModel])) {
+            $models[$defaultModel] = [
+                'id' => $defaultModel,
+                'display_name' => $defaultModel,
+                'provider' => 'URU AI Space',
+                'description' => 'Default chatbot model',
+            ];
+        }
+
+        return array_values($models);
+    }
+
+    public function resolveModel(?string $model = null): string
+    {
+        $model = trim((string) $model);
+        $model = $model !== '' ? $model : $this->model();
+
+        if (! in_array($model, array_column($this->models(), 'id'), true)) {
+            throw new \InvalidArgumentException('The selected chat model is not supported.');
+        }
+
+        return $model;
+    }
+
+    private function baseUrl(): string
+    {
+        return rtrim((string) Config::get('services.ai.base_url', 'https://gen.ai.kku.ac.th/uruacth/api/v1'), '/');
+    }
+
+    private function model(): string
+    {
+        return (string) Config::get('services.ai.model', 'claude-sonnet-5');
+    }
+
+    private function chatCompletionsUrl(): string
+    {
+        return $this->baseUrl() . '/chat/completions';
+    }
+
+    private function buildSystemPrompt(): string
+    {
+        return <<<PROMPT
+คุณคือ chatbot ของ URU Smart
+ตอบคำถามทั่วไปได้ตามความรู้ทั่วไป และอธิบายการใช้งานระบบในภาพรวมได้
+
+ข้อห้ามสำคัญ:
+1. ห้ามเปิดเผยข้อมูลส่วนตัวของบุคคลใด ๆ
+2. ห้ามตอบชื่อ นามสกุล อีเมล เบอร์โทร เลขบัตรประชาชน รหัสนักศึกษา รหัสบุคลากร หรือข้อมูลระบุตัวบุคคล
+3. ห้ามกล่าวอ้างว่าดึงข้อมูลจาก database ตาราง users, expert2.users, lrdsystem2.users หรือ researchers
+4. ถ้าผู้ใช้ถามหาข้อมูลส่วนตัวหรือข้อมูลของบุคคลในฐานข้อมูล ให้ปฏิเสธสั้น ๆ
+5. ตอบคำถามทั่วไปได้ เช่น ความรู้รอบตัว เทคโนโลยี การเรียน การเขียนโค้ด หรือการใช้งานระบบแบบไม่เจาะจงบุคคล
+6. ตอบเป็นภาษาไทย กระชับ สุภาพ และไม่แต่งข้อมูลเฉพาะบุคคล
+PROMPT;
+    }
+
     private function sanitizeText(string $text): string
     {
-        // Remove any invalid UTF-8 sequences and return clean UTF-8
-        if (empty($text)) {
+        if ($text === '') {
             return '';
         }
 
-        // Convert to UTF-8, removing invalid characters
         $text = mb_convert_encoding($text, 'UTF-8', 'UTF-8');
 
-        // Remove any control characters except newlines
-        $text = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/u', '', $text);
-
-        return $text;
+        return (string) preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/u', '', $text);
     }
 
-    /**
-     * Get web content from university website
-     */
-    private function getWebContext(): string
+    private function asksForPersonalOrDatabaseData(string $message): bool
     {
-        try {
-            $webContent = "### ข้อมูลจากเว็บไซต์ https://www.uru.ac.th/\n\n";
+        $normalized = mb_strtolower($message, 'UTF-8');
 
-            // Try to fetch university website
-            $response = Http::withoutVerifying()->timeout(5)->get('https://www.uru.ac.th/');
-
-            if ($response->successful()) {
-                $html = $response->body();
-
-                // Extract h1 heading
-                if (preg_match('/<h1[^>]*>([^<]+)<\/h1>/i', $html, $matches)) {
-                    $webContent .= "**หัวข้อหลัก:** " . $this->sanitizeText($matches[1]) . "\n\n";
-                }
-
-                // Extract all h2 headings (sections)
-                preg_match_all('/<h2[^>]*>([^<]+)<\/h2>/i', $html, $matches);
-                if (!empty($matches[1])) {
-                    $webContent .= "**ส่วนต่างๆของเว็บไซต์:**\n";
-                    foreach (array_slice($matches[1], 0, 5) as $h2) {
-                        $webContent .= "- " . $this->sanitizeText($h2) . "\n";
-                    }
-                    $webContent .= "\n";
-                }
-
-                // Extract text from paragraph tags (up to 300 chars)
-                preg_match_all('/<p[^>]*>([^<]+)<\/p>/i', $html, $matches);
-                if (!empty($matches[1])) {
-                    $webContent .= "**เนื้อหา:** ";
-                    $text = array_filter($matches[1], fn($t) => strlen(trim($t)) > 20);
-                    if (!empty($text)) {
-                        $combined = implode(" ", array_slice($text, 0, 3));
-                        $webContent .= $this->sanitizeText(substr($combined, 0, 200)) . "...\n\n";
-                    }
-                }
-
-                return $webContent;
+        foreach ($this->blockedPersonalDataKeywords as $keyword) {
+            if (str_contains($normalized, mb_strtolower($keyword, 'UTF-8'))) {
+                return true;
             }
-
-            return "### ข้อมูลเว็บ\nไม่สามารถดึงข้อมูลจากเว็บได้ขณะนี้\n\n";
-
-        } catch (\Exception $e) {
-            \Log::error('Web scraping error: ' . $e->getMessage());
-            return "### ข้อมูลเว็บ\nไม่สามารถดึงข้อมูลจากเว็บได้ขณะนี้\n\n";
         }
+
+        return false;
     }
 
-    /**
-     * Build system prompt with university context
-     */
-    private function buildSystemPrompt(): string
+    private function containsPersonalDataLeak(string $reply): bool
     {
-        $universityContext = $this->getUniversityContext();
-        $webContext = $this->getWebContext();
-
-        return <<<PROMPT
-คุณคือผู้ช่วยสนทนาของมหาวิทยาลัยราชภัฏอุตรดิตถ์ ที่มีความรับผิดชอบต่อความถูกต้องและความน่าเชื่อถือของข้อมูล
-
-ข้อมูลระบบที่มีอยู่:
-{$universityContext}
-
-{$webContext}
-
-**กฎการตอบคำถาม:**
-
-สำหรับคำถามเกี่ยวกับมหาวิทยาลัยราชภัฏอุตรดิตถ์:
-1. ✅ ตอบจากข้อมูลที่มีในระบบเท่านั้น (database + เว็บไซต์ต่อหน้า)
-2. ✅ ถ้ามีข้อมูลจากระบบ - ตอบอย่างชัดเจนพร้อมแหล่งข้อมูล
-3. ❌ ห้ามสมมุติ ซุย หรือคิดเองหากไม่มีข้อมูล
-4. ❌ ห้าม "คาดว่า" หรือ "ควรจะ" - ต้องตอบจากข้อเท็จจริง
-5. ✅ ถ้าไม่มีข้อมูล - บอก "ขออภัย ไม่มีข้อมูล [เรื่องนี้] ในระบบ"
-6. ❌สำคัญสุดห้ามข้อมูลส่วนตัวทั้งหมดเกี่ยวกับ user หลุดเด็ดขาดทั้ง ชื่อ, นามสกุล, เบอร์โทร, อีเมล, รหัสบัตรประชาชน, รหัสอาจารย์, หรือข้อมูลส่วนตัวอื่นๆ
-สำหรับคำถามทั่วไป (ไม่เกี่ยวมหาวิทยาลัย):
-- คุณสามารถตอบตามความรู้ได้ แต่ยังต้องเป็นความจริง ไม่หลอก
-
-**สำคัญที่สุด:**
-- ความถูกต้องมีความสำคัญมากกว่าการให้คำตอบที่ยาว
-- ดีกว่าที่จะพูดว่า "ไม่รู้" มากกว่าให้ข้อมูลผิด
-- ตอบเป็นภาษาไทยเสมอ
-PROMPT;
+        return (bool) preg_match('/\b\d{13}\b|[A-Z0-9._%+\-]+@[A-Z0-9.\-]+\.[A-Z]{2,}/i', $reply);
     }
 }

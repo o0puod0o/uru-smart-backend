@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
@@ -37,29 +39,23 @@ class ProfileController extends Controller
      */
     public function show(int $id)
     {
-        // Eager load ทั้ง 14 relationships เพื่อลด N+1 query
-        // Include nested relationships สำหรับ researches (researchType, researchPMUType, researchLevel)
-        $user = User::with([
-            'experts',
-            'interests',
-            'educations',
-            'workexes',
-            'boardexes',
-            'researches',
-            'journals',
-            'proceedings',
-            'books',
-            'patents',
-            'awards',
-            'lecturers',
-            'trainings',
-            'academics',
-            'hsps',
-        ])->findOrFail($id);
+        $user = User::findOrFail($id);
 
-        if (!$user) {
-            return response()->json(['message' => 'User not found'], 404);
-        }
+        $experts = $this->safeProfileRelation($user, 'experts');
+        $interests = $this->safeProfileRelation($user, 'interests');
+        $researches = $this->safeProfileRelation($user, 'researches');
+        $journals = $this->safeProfileRelation($user, 'journals');
+        $proceedings = $this->safeProfileRelation($user, 'proceedings');
+        $books = $this->safeProfileRelation($user, 'books');
+        $patents = $this->safeProfileRelation($user, 'patents');
+        $awards = $this->safeProfileRelation($user, 'awards');
+        $lecturers = $this->safeProfileRelation($user, 'lecturers');
+        $trainings = $this->safeProfileRelation($user, 'trainings');
+        $educations = $this->safeProfileRelation($user, 'educations');
+        $workexes = $this->safeProfileRelation($user, 'workexes');
+        $boardexes = $this->safeProfileRelation($user, 'boardexes');
+        $academics = $this->safeProfileRelation($user, 'academics');
+        $hsps = $this->safeProfileRelation($user, 'hsps');
 
         return response()->json([
             'data' => [
@@ -79,73 +75,97 @@ class ProfileController extends Controller
                 'facebook' => $user->facebook,
                 'phone_work' => $user->phone_work,
                 'profile_picture' => $user->profile_picture,
-                'expertises' => $user->experts->map(fn ($e) => ['name' => $e->name])->values(),
-                'interests' => $user->interests->map(fn ($i) => ['name' => $i->name])->values(),
-                'researches' => $user->researches->map(fn ($r) => [
+                'expertises' => $experts->map(fn ($e) => ['name' => $e->name])->values(),
+                'interests' => $interests->map(fn ($i) => ['name' => $i->name])->values(),
+                'researches' => $researches->map(fn ($r) => [
                     'year' => $r->year,
                     'name' => $r->name,
                     'research_type_id' => $r->research_type_id,
                     'research_pmu_type_id' => $r->research_PMU_type_id,
                     'research_level_id' => $r->research_level_id,
                 ])->values(),
-                'journals' => $user->journals->map(fn ($j) => [
+                'journals' => $journals->map(fn ($j) => [
                     'year' => $j->year,
                     'name' => $j->name,
                     'url' => $j->url,
                 ])->values(),
-                'proceedings' => $user->proceedings->map(fn ($p) => [
+                'proceedings' => $proceedings->map(fn ($p) => [
                     'year' => $p->year,
                     'name' => $p->name,
                 ])->values(),
-                'books' => $user->books->map(fn ($b) => [
+                'books' => $books->map(fn ($b) => [
                     'year' => $b->year,
                     'name' => $b->name,
                 ])->values(),
-                'patents' => $user->patents->map(fn ($pt) => [
+                'patents' => $patents->map(fn ($pt) => [
                     'year' => $pt->year,
                     'name' => $pt->name,
                     'link' => $pt->link,
                 ])->values(),
-                'awards' => $user->awards->map(fn ($a) => [
+                'awards' => $awards->map(fn ($a) => [
                     'year' => $a->year,
                     'name' => $a->name,
                 ])->values(),
-                'lecturers' => $user->lecturers->map(fn ($l) => [
+                'lecturers' => $lecturers->map(fn ($l) => [
                     'year' => $l->year,
                     'name' => $l->name,
                 ])->values(),
-                'trainings' => $user->trainings->map(fn ($t) => [
+                'trainings' => $trainings->map(fn ($t) => [
                     'year' => $t->year,
                     'name' => $t->name,
                 ])->values(),
-                'educations' => $user->educations->map(fn ($e) => [
+                'educations' => $educations->map(fn ($e) => [
                     'year' => $e->year,
                     'degree' => $e->degree,
                     'course' => $e->course,
                     'university' => $e->university,
                 ])->values(),
-                'workexes' => $user->workexes->map(fn ($w) => [
+                'workexes' => $workexes->map(fn ($w) => [
                     'position' => $w->position,
                     'workplace' => $w->workplace,
                     'year_start' => $w->year_start,
                     'year_end' => $w->year_end,
                 ])->values(),
-                'boardexes' => $user->boardexes->map(fn ($b) => [
+                'boardexes' => $boardexes->map(fn ($b) => [
                     'position' => $b->position,
                     'workplace' => $b->workplace,
                     'year_start' => $b->year_start,
                     'year_end' => $b->year_end,
                 ])->values(),
-                'academics' => $user->academics->map(fn ($ac) => [
+                'academics' => $academics->map(fn ($ac) => [
                     'year' => $ac->year,
                     'name' => $ac->name,
                 ])->values(),
-                'hsps' => $user->hsps->map(fn ($h) => [
+                'hsps' => $hsps->map(fn ($h) => [
                     'year' => $h->year,
                     'name' => $h->name,
                 ])->values(),
             ]
         ]);
+    }
+
+    private function safeProfileRelation(User $user, string $relation): Collection
+    {
+        try {
+            return $user->{$relation}()->get();
+        } catch (\Throwable $e) {
+            $this->logSkippedProfileRelation($user->id, $relation, $e);
+
+            return collect();
+        }
+    }
+
+    private function logSkippedProfileRelation(int $userId, string $relation, \Throwable $e): void
+    {
+        try {
+            Log::warning('Public profile relation skipped', [
+                'user_id' => $userId,
+                'relation' => $relation,
+                'error' => $e->getMessage(),
+            ]);
+        } catch (\Throwable $ignored) {
+            // Do not let logging problems break the public profile endpoint.
+        }
     }
 
     /**
@@ -219,7 +239,11 @@ class ProfileController extends Controller
      */
     public function update(Request $request)
     {
-        $request->validate([
+        $validated = $request->validate([
+            // These mobile aliases are mapped below; database column names are
+            // intentionally not accepted from the client.
+            'prefix_id'       => 'nullable|string|max:20',
+            'birthdate'       => 'nullable|date',
             'phone_work'      => 'nullable|string|max:20',
             'phone_mobile'    => 'nullable|string|max:20',
             'line_id'         => 'nullable|string|max:50',
@@ -236,7 +260,16 @@ class ProfileController extends Controller
             'zipcode'         => 'nullable|string|max:10',
             'position'        => 'nullable|string|max:100',
             'branch'          => 'nullable|string|max:100',
+            // Unit reference data is owned by the Info/Expert module.  URU
+            // Smart stores these IDs only for legacy /me compatibility.
+            'main_unit'       => 'nullable|integer|min:1',
+            'sub_unit'        => 'nullable|integer|min:1',
+            'sub_unit_id'     => 'nullable|integer|min:1',
         ]);
+
+        $hasMainUnit = $request->exists('main_unit');
+        $hasSubUnit = $request->exists('sub_unit');
+        $hasSubUnitId = $request->exists('sub_unit_id');
 
         $user = $request->user();
         $data = $request->only([
@@ -246,6 +279,29 @@ class ProfileController extends Controller
             'amphoe', 'province', 'zipcode',
             'position', 'branch',
         ]);
+
+        if ($request->exists('prefix_id')) {
+            $data['prefix_th'] = $validated['prefix_id'];
+        }
+
+        if ($request->exists('birthdate')) {
+            $data['birth_date'] = $validated['birthdate'];
+        }
+
+        $mainUnitId = $hasMainUnit
+            ? $validated['main_unit']
+            : $user->department_id;
+        $subUnitId = $hasSubUnit
+            ? $validated['sub_unit']
+            : ($hasSubUnitId ? $validated['sub_unit_id'] : $user->sub_dep_id);
+
+        if ($hasMainUnit) {
+            $data['department_id'] = $mainUnitId;
+        }
+
+        if ($hasSubUnit || $hasSubUnitId) {
+            $data['sub_dep_id'] = $subUnitId;
+        }
 
         $user->update($data);
 
@@ -443,16 +499,41 @@ class ProfileController extends Controller
         // Delete old photo if exists
         if ($user->picture) {
             try {
-                $oldPath = str_replace('/storage/', '', parse_url($user->picture, PHP_URL_PATH));
-                \Storage::disk('public')->delete($oldPath);
+                $oldPath = parse_url($user->picture, PHP_URL_PATH) ?: '';
+
+                if (Str::startsWith($oldPath, '/photos/')) {
+                    $absoluteOldPath = public_path(ltrim($oldPath, '/'));
+
+                    if (is_file($absoluteOldPath)) {
+                        @unlink($absoluteOldPath);
+                    }
+                } elseif (Str::startsWith($oldPath, '/storage/')) {
+                    $storagePath = str_replace('/storage/', '', $oldPath);
+                    Storage::disk('public')->delete($storagePath);
+                }
             } catch (\Exception $e) {
                 // Ignore if file not found
             }
         }
 
-        // Store new photo
-        $path = $request->file('photo')->store('photos', 'public');
-        $url = \Storage::disk('public')->url($path);
+        // Store new photo directly under public/photos for IIS/shared hosting.
+        $file = $request->file('photo');
+        $filename = (string) Str::uuid().'.'.$file->getClientOriginalExtension();
+        $directory = public_path('photos');
+
+        if (! is_dir($directory)) {
+            mkdir($directory, 0755, true);
+        }
+
+        $contents = file_get_contents($file->getRealPath());
+
+        if ($contents === false || file_put_contents($directory.DIRECTORY_SEPARATOR.$filename, $contents) === false) {
+            return response()->json([
+                'message' => 'Unable to save uploaded photo.',
+            ], 500);
+        }
+
+        $url = url('photos/'.$filename);
 
         // Update user picture
         $user->update(['picture' => $url]);
@@ -476,8 +557,18 @@ class ProfileController extends Controller
         // Delete photo file if exists
         if ($user->picture) {
             try {
-                $path = str_replace('/storage/', '', parse_url($user->picture, PHP_URL_PATH));
-                \Storage::disk('public')->delete($path);
+                $path = parse_url($user->picture, PHP_URL_PATH) ?: '';
+
+                if (Str::startsWith($path, '/photos/')) {
+                    $absolutePath = public_path(ltrim($path, '/'));
+
+                    if (is_file($absolutePath)) {
+                        @unlink($absolutePath);
+                    }
+                } elseif (Str::startsWith($path, '/storage/')) {
+                    $storagePath = str_replace('/storage/', '', $path);
+                    Storage::disk('public')->delete($storagePath);
+                }
             } catch (\Exception $e) {
                 // Ignore if file not found
             }

@@ -23,6 +23,16 @@ class WebAdminAuthController extends Controller
         return view('admin.auth.login');
     }
 
+    public function redirectToSso(Request $request): RedirectResponse
+    {
+        $state = bin2hex(random_bytes(20));
+        $request->session()->put('admin_sso_state', $state);
+
+        return redirect()->route('auth.redirect', [
+            'state' => 'admin:'.$state,
+        ]);
+    }
+
     public function store(Request $request): RedirectResponse
     {
         $credentials = $request->validate([

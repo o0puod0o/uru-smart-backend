@@ -15,6 +15,10 @@ class Kernel extends ConsoleKernel
         $schedule->command('notifications:dispatch')
             ->everyMinute()
             ->withoutOverlapping();
+
+        $schedule->command('profile-interests:sync --limit=5000')
+            ->dailyAt('02:20')
+            ->withoutOverlapping();
     }
 
     /**

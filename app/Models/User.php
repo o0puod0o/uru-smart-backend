@@ -158,6 +158,16 @@ class User extends Authenticatable
         return $this->hasMany(AppNotification::class);
     }
 
+    public function chatbotHistories()
+    {
+        return $this->hasMany(ChatbotHistory::class);
+    }
+
+    public function chatConversations()
+    {
+        return $this->hasMany(ChatConversation::class);
+    }
+
     public function getDisplayPictureAttribute()
     {
         return $this->picture ?: $this->sso_picture;

@@ -12,6 +12,7 @@ use App\Models\Department;
 use App\Models\Position;
 use App\Models\SubDepartment;
 use App\Models\HasExpert;
+use App\Support\CanonicalExpertiseGroups;
 use Illuminate\Support\Facades\File;
 
 /**
@@ -42,7 +43,7 @@ class ReferenceController extends Controller
     {
         return response()->json([
             'search_from' => $this->searchFieldItems(),
-            'expertise_groups' => $this->uniqueOptionItems('กลุ่มความเชี่ยวชาญทั้งหมด'),
+            'expertise_groups' => $this->expertiseGroupOptionItems('กลุ่มความเชี่ยวชาญทั้งหมด'),
             'interests' => $this->uniqueOptionItems('ความสนใจทั้งหมด'),
         ]);
     }
@@ -54,12 +55,19 @@ class ReferenceController extends Controller
 
     public function expertiseOptions()
     {
-        return response()->json($this->uniqueOptionItems('กลุ่มความเชี่ยวชาญทั้งหมด'));
+        return response()->json($this->expertiseGroupOptionItems('กลุ่มความเชี่ยวชาญทั้งหมด'));
     }
 
     public function interestOptions()
     {
         return response()->json($this->uniqueOptionItems('ความสนใจทั้งหมด'));
+    }
+
+    public function expertiseGroupsData()
+    {
+        return response()->json([
+            'data' => $this->expertiseGroupItems(),
+        ]);
     }
 
     public function prefixes()
@@ -219,7 +227,23 @@ class ReferenceController extends Controller
 
     public function expertiseGroups()
     {
-        return response()->json(HasExpert::orderBy('name')->get(['expert_id as id', 'name']));
+        return response()->json($this->expertiseGroupItems());
+    }
+
+    private function expertiseGroupItems()
+    {
+        return collect(CanonicalExpertiseGroups::all());
+    }
+
+    private function expertiseGroupOptionItems(?string $allLabel = null): array
+    {
+        $items = CanonicalExpertiseGroups::all();
+
+        if ($allLabel) {
+            array_unshift($items, ['id' => 'all', 'name' => $allLabel]);
+        }
+
+        return $items;
     }
 
     private function uniqueOptionItems(?string $allLabel = null): array

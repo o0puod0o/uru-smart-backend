@@ -74,8 +74,18 @@ class ProfileTest extends TestCase
         $this->assertArrayHasKey('prefix_id', $profile);
     }
 
-    public function test_update_profile_updates_only_mobile_owned_fields(): void
+    public function test_update_profile_persists_mobile_profile_fields_and_unit_aliases(): void
     {
+        $department = \App\Models\Department::query()->create([
+            'dep_id' => 99,
+            'name' => 'Main unit 99',
+        ]);
+        \App\Models\SubDepartment::query()->create([
+            'sub_dep_id' => 88,
+            'dep_id' => $department->dep_id,
+            'name' => 'Sub unit 88',
+        ]);
+
         $user = User::factory()->create([
             'prefix_th' => 'Mr.',
             'birth_date' => '1980-01-01',
@@ -92,7 +102,7 @@ class ProfileTest extends TestCase
             'prefix_id'    => 'Dr.',
             'birthdate'    => '1985-03-15',
             'main_unit'    => 99,
-            'sub_unit_id'  => 88,
+            'sub_unit'     => 88,
         ])->assertOk()->assertJsonPath('message', 'อัพเดทข้อมูลสำเร็จ');
 
         $this->assertDatabaseHas('users', [
@@ -100,12 +110,36 @@ class ProfileTest extends TestCase
             'phone_mobile' => '0812345678',
             'bio'          => 'updated bio',
             'line_id'      => 'myline',
-            'prefix_th'    => 'Mr.',
-            'department_id' => 10,
-            'sub_dep_id'   => 20,
+            'prefix_th'    => 'Dr.',
+            'department_id' => 99,
+            'sub_dep_id'   => 88,
         ]);
 
-        $this->assertSame('1980-01-01', $user->fresh()->birth_date->format('Y-m-d'));
+        $this->assertSame('1985-03-15', $user->fresh()->birth_date->format('Y-m-d'));
+
+        $this->getJson('/api/me')
+            ->assertOk()
+            ->assertJsonPath('data.main_unit', 99)
+            ->assertJsonPath('data.sub_unit', 88)
+            ->assertJsonPath('data.sub_unit_id', 88);
+    }
+
+    public function test_update_profile_accepts_info_module_unit_ids_without_cross_database_validation(): void
+    {
+        $user = User::factory()->create();
+
+        Sanctum::actingAs($user);
+
+        $this->putJson('/api/me', [
+            'main_unit' => 4,
+            'sub_unit' => 62,
+        ])->assertOk();
+
+        $this->assertDatabaseHas('users', [
+            'id' => $user->id,
+            'department_id' => 4,
+            'sub_dep_id' => 62,
+        ]);
     }
 
     public function test_update_requires_auth(): void

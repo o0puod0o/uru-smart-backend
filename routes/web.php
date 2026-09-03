@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AdminUserController;
 use App\Http\Controllers\SsoCallbackController;
+use App\Http\Controllers\SsoRedirectController;
 use App\Http\Controllers\WebAdminAuthController;
 use Illuminate\Support\Facades\DB;
 
@@ -69,9 +70,12 @@ Route::get('/frontend-sso-demo', function () {
 });
 
 Route::get('/auth/callback', SsoCallbackController::class)->name('auth.callback');
+Route::get('/auth/sso-url', [SsoRedirectController::class, 'url'])->name('auth.sso-url');
+Route::get('/auth/redirect', [SsoRedirectController::class, 'redirect'])->name('auth.redirect');
 
 Route::middleware('guest')->group(function () {
     Route::get('/admin/login', [WebAdminAuthController::class, 'create'])->name('login');
+    Route::get('/admin/sso/redirect', [WebAdminAuthController::class, 'redirectToSso'])->name('admin.sso.redirect');
     Route::post('/admin/login', [WebAdminAuthController::class, 'store'])->name('admin.login');
 });
 

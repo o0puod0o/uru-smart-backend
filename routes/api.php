@@ -1,8 +1,10 @@
 <?php
 
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\AppSettingController;
 use App\Http\Controllers\ChatController;
 use App\Http\Controllers\MockSsoController;
+use App\Http\Controllers\ModuleBridgeController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Api\ResearchController;
 use App\Http\Controllers\Api\JournalController;
@@ -68,7 +70,9 @@ Route::prefix('auth')->group(function () {
 
 
 // ===== PROTECTED ROUTES (ต้อง auth:sanctum) =====
-Route::middleware('auth:sanctum')->group(function () {
+Route::middleware('auth:sanctum')->group(function () use ($registerLegacyUruSmartModuleRoutes) {
+    Route::get('module/session', [ModuleBridgeController::class, 'session']);
+
     // Profile management
     Route::get('me', [ProfileController::class, 'me']);
     Route::get('me/external-profile', [ExternalProfileController::class, 'me']);
@@ -85,10 +89,22 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('notifications/{id}', [NotificationController::class, 'destroy']);
 
     // Chat / Chatbot
+    Route::get('chat/models', [ChatController::class, 'models']);
+    Route::get('chat/conversations', [ChatController::class, 'conversations']);
+    Route::post('chat/conversations', [ChatController::class, 'createConversation']);
+    Route::get('chat/conversations/{conversation_id}/messages', [ChatController::class, 'messages']);
+    Route::patch('chat/conversations/{conversation_id}', [ChatController::class, 'updateConversation']);
+    Route::delete('chat/conversations/{conversation_id}', [ChatController::class, 'deleteConversation']);
     Route::post('chat', [ChatController::class, 'send']);
+    Route::get('chat/history', [ChatController::class, 'history']);
+    Route::delete('chat/history', [ChatController::class, 'clearHistory']);
+    Route::get('app-settings', [AppSettingController::class, 'index']);
+    Route::post('app-settings', [AppSettingController::class, 'upsert']);
 
     // Announcements & Search
     Route::get('announcements', [AnnouncementController::class, 'index']);
+
+    if ($registerLegacyUruSmartModuleRoutes) {
     Route::get('profile-search', [ProfileSearchController::class, 'index']);
 
     // Quick reference endpoints
@@ -97,6 +113,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('lines', [ReferenceController::class, 'lines']);
     Route::get('main-units', [ReferenceController::class, 'mainUnits']);
     Route::get('sub-units', [ReferenceController::class, 'subUnits']);
+    Route::get('expertise-groups', [ReferenceController::class, 'expertiseGroupsData']);
 
     // Reference data - grouped under /api/ref
     Route::prefix('ref')->group(function () {
@@ -147,6 +164,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('files', [EntityFileController::class, 'store']);
     Route::get('files/{file}/download', [EntityFileController::class, 'download']);
     Route::delete('files/{file}', [EntityFileController::class, 'destroy']);
+    }
 
     Route::middleware('admin')->prefix('admin')->group(function () {
         Route::get('users', [AdminUserApiController::class, 'index']);

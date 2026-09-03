@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\HasExpert;
+use App\Support\CanonicalExpertiseGroups;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -19,7 +20,9 @@ class ExpertiseController extends Controller
                 'users_expert.id',
                 'users_expert.expert_id',
                 'has_experts.name',
-            ]);
+            ])
+            ->map(fn ($item): array => $this->expertiseResource($item))
+            ->values();
 
         return response()->json($items);
     }
@@ -27,25 +30,24 @@ class ExpertiseController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'expert_id' => 'nullable|integer|exists:has_experts,expert_id',
+            'expert_id' => 'nullable|integer',
+            'group_id' => 'nullable|integer',
             'name' => 'nullable|string|max:500',
         ]);
 
         $expertId = $this->resolveExpertId($validated);
 
-        $exists = DB::table('users_expert')
-            ->where('user_id', $request->user()->id)
-            ->where('expert_id', $expertId)
-            ->exists();
+        $existingId = $this->existingCanonicalPivotId($request->user()->id, $expertId);
 
-        if (! $exists) {
-            DB::table('users_expert')->insert([
+        $pivotId = $existingId ?: DB::table('users_expert')->insertGetId([
                 'user_id' => $request->user()->id,
                 'expert_id' => $expertId,
             ]);
-        }
 
-        return response()->json(['message' => 'Expertise saved successfully'], 201);
+        return response()->json([
+            'message' => 'Expertise saved successfully',
+            'data' => $this->findUserExpertise($request->user()->id, (int) $pivotId),
+        ], 201);
     }
 
     public function show(Request $request, int $id)
@@ -62,13 +64,14 @@ class ExpertiseController extends Controller
 
         abort_if(! $item, 404);
 
-        return response()->json($item);
+        return response()->json($this->expertiseResource($item));
     }
 
     public function update(Request $request, int $id)
     {
         $validated = $request->validate([
-            'expert_id' => 'nullable|integer|exists:has_experts,expert_id',
+            'expert_id' => 'nullable|integer',
+            'group_id' => 'nullable|integer',
             'name' => 'nullable|string|max:500',
         ]);
 
@@ -81,7 +84,10 @@ class ExpertiseController extends Controller
 
         abort_if($updated === 0, 404);
 
-        return response()->json(['message' => 'Expertise updated successfully']);
+        return response()->json([
+            'message' => 'Expertise updated successfully',
+            'data' => $this->findUserExpertise($request->user()->id, $id),
+        ]);
     }
 
     public function destroy(Request $request, int $id)
@@ -98,17 +104,116 @@ class ExpertiseController extends Controller
 
     private function resolveExpertId(array $validated): int
     {
+        if (! empty($validated['group_id'])) {
+            return $this->canonicalExpertIdFromInput((int) $validated['group_id']);
+        }
+
         if (! empty($validated['expert_id'])) {
-            return $validated['expert_id'];
+            return $this->canonicalExpertIdFromInput((int) $validated['expert_id']);
         }
 
         abort_if(empty($validated['name']), 422, 'The name field is required when expert_id is not provided.');
 
-        $expert = HasExpert::firstOrCreate(
-            ['name' => $validated['name']],
-            ['date_add' => now()]
+        $canonicalId = CanonicalExpertiseGroups::canonicalIdFromName($validated['name']);
+        abort_if($canonicalId === null, 422, 'The selected expertise group is invalid.');
+
+        $canonical = CanonicalExpertiseGroups::canonicalGroupFor($canonicalId);
+        abort_if($canonical === null, 422, 'The selected expertise group is invalid.');
+
+        return $this->ensureCanonicalExpertGroup($canonical);
+    }
+
+    private function canonicalExpertIdFromInput(int $expertId): int
+    {
+        $expert = HasExpert::query()
+            ->where('expert_id', $expertId)
+            ->first(['expert_id', 'name']);
+
+        $canonical = CanonicalExpertiseGroups::canonicalGroupFor(
+            $expert ? (int) $expert->expert_id : $expertId,
+            $expert ? $expert->name : null
         );
 
-        return $expert->expert_id;
+        abort_if($canonical === null, 422, 'The selected expertise group is invalid.');
+
+        return $this->ensureCanonicalExpertGroup($canonical);
+    }
+
+    private function ensureCanonicalExpertGroup(array $canonical): int
+    {
+        $existing = HasExpert::query()
+            ->where('expert_id', $canonical['id'])
+            ->first(['expert_id', 'name']);
+
+        if (! $existing) {
+            DB::table('has_experts')->insert([
+                'expert_id' => $canonical['id'],
+                'name' => $canonical['name'],
+                'date_add' => now(),
+            ]);
+
+            return (int) $canonical['id'];
+        }
+
+        if ($existing->name !== $canonical['name']) {
+            DB::table('has_experts')
+                ->where('expert_id', $canonical['id'])
+                ->update(['name' => $canonical['name']]);
+        }
+
+        return (int) $canonical['id'];
+    }
+
+    private function existingCanonicalPivotId(int $userId, int $expertId): ?int
+    {
+        $ids = CanonicalExpertiseGroups::idsMatching($expertId);
+        $names = CanonicalExpertiseGroups::namesMatching($expertId);
+
+        return DB::table('users_expert')
+            ->join('has_experts', 'users_expert.expert_id', '=', 'has_experts.expert_id')
+            ->where('users_expert.user_id', $userId)
+            ->where(function ($query) use ($ids, $names): void {
+                $query->whereIn('users_expert.expert_id', $ids);
+
+                if ($names !== []) {
+                    $query->orWhereIn('has_experts.name', $names);
+                }
+            })
+            ->value('users_expert.id');
+    }
+
+    private function findUserExpertise(int $userId, int $id): array
+    {
+        $item = DB::table('users_expert')
+            ->join('has_experts', 'users_expert.expert_id', '=', 'has_experts.expert_id')
+            ->where('users_expert.user_id', $userId)
+            ->where('users_expert.id', $id)
+            ->first([
+                'users_expert.id',
+                'users_expert.expert_id',
+                'has_experts.name',
+            ]);
+
+        abort_if(! $item, 404);
+
+        return $this->expertiseResource($item);
+    }
+
+    private function expertiseResource(object $item): array
+    {
+        $canonical = CanonicalExpertiseGroups::canonicalGroupFor(
+            (int) $item->expert_id,
+            $item->name
+        );
+
+        $groupId = $canonical['id'] ?? (int) $item->expert_id;
+        $name = $canonical['name'] ?? $item->name;
+
+        return [
+            'id' => (int) $item->id,
+            'expert_id' => $groupId,
+            'group_id' => $groupId,
+            'name' => $name,
+        ];
     }
 }

@@ -2,6 +2,9 @@
 
 return [
     'base_url'      => env('SSO_BASE_URL', 'http://localhost:8000'),
+    'authorize_path' => env('SSO_AUTHORIZE_PATH', 'oauth_login'),
+    'userinfo_path' => env('SSO_USERINFO_PATH', 'me'),
+    'verify_ssl' => env('SSO_VERIFY_SSL', true),
     'driver'        => env('SSO_DRIVER', 'oauth'),
     'expert_api_base_url' => env('SSO_EXPERT_API_BASE_URL', 'https://expert.uru.ac.th/api'),
     'expert_api_token' => env('SSO_EXPERT_API_TOKEN'),

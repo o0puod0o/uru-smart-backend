@@ -22,3 +22,16 @@ temp*.php
 profile.html
 profile_*.pdf
 search_results.txt
+
+# Local deployment, diagnostics, exports, and design working files
+/.audit/
+/.deploy_tmp/
+/.deploy_tmp%2F*
+/backups/
+/INFO_UPLOAD_READY_*/
+/laravel8-php74-test/
+/public/*-smoke-test-temp.php
+/*.drawio
+/DFD_LEVEL_*.svg
+/dfdlvl0.drawio
+/er diagram.drawio

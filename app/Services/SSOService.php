@@ -16,11 +16,13 @@ class SSOService
         $this->http = new Client([
             'base_uri' => rtrim(trim((string) config('sso.base_url')), '/') . '/',
             'timeout'  => 10,
+            'verify' => (bool) config('sso.verify_ssl', true),
         ]);
 
         $this->expertApi = new Client([
             'base_uri' => rtrim(trim((string) config('sso.expert_api_base_url')), '/') . '/',
             'timeout'  => 10,
+            'verify' => (bool) config('sso.verify_ssl', true),
         ]);
     }
 
@@ -229,7 +231,7 @@ class SSOService
 
     private function requestOauthUserInfo(string $accessToken): array
     {
-        $response = $this->http->get('api/userinfo', [
+        $response = $this->http->get(ltrim((string) config('sso.userinfo_path', 'me'), '/'), [
             'headers' => [
                 'Authorization' => 'Bearer ' . $accessToken,
                 'Accept'        => 'application/json',

@@ -4,6 +4,9 @@ namespace App\Services;
 
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 
 class SSOUserSynchronizer
 {
@@ -14,7 +17,7 @@ class SSOUserSynchronizer
         $user = $this->findExistingUser($ssoUser) ?? new User();
         $ssoId = $this->availableSsoId($ssoUser['id'] ?? null, $user);
 
-        $user->fill([
+        $user->fill($this->onlyExistingUserColumns([
             'sso_id' => $ssoId,
             'code' => $ssoUser['code'],
             'username' => $ssoUser['username'],
@@ -49,7 +52,17 @@ class SSOUserSynchronizer
             'custom2' => $ssoUser['custom2'] ?? null,
             'custom3' => $ssoUser['custom3'] ?? null,
             'sso_last_updated_at' => $ssoUser['last_updated_at'],
-        ]);
+        ], $user));
+
+        if (Schema::hasColumn($user->getTable(), 'name')) {
+            $user->name = trim(($ssoUser['first_name_th'] ?? '') . ' ' . ($ssoUser['last_name_th'] ?? ''))
+                ?: trim(($ssoUser['first_name_en'] ?? '') . ' ' . ($ssoUser['last_name_en'] ?? ''))
+                ?: ($ssoUser['email'] ?? $ssoUser['username'] ?? 'SSO User');
+        }
+
+        if (Schema::hasColumn($user->getTable(), 'password') && ! $user->exists && empty($user->password)) {
+            $user->password = Hash::make(Str::random(40));
+        }
 
         $user->save();
 
@@ -102,6 +115,17 @@ class SSOUserSynchronizer
         return $email ? User::query()->where('email', $email)->first() : null;
     }
 
+    private function onlyExistingUserColumns(array $attributes, User $user): array
+    {
+        $table = $user->getTable();
+
+        return array_filter(
+            $attributes,
+            fn (string $column): bool => Schema::hasColumn($table, $column),
+            ARRAY_FILTER_USE_KEY
+        );
+    }
+
     private function availableSsoId(mixed $ssoId, User $currentUser): mixed
     {
         if (! $ssoId) {
@@ -128,7 +152,7 @@ class SSOUserSynchronizer
         $idCard = $this->stringOrNull($profile['id_card'] ?? null);
         $usersId = (int) ($profile['users_id'] ?? 0);
         $picture = $profile['picture_url'] ?? $profile['picture'] ?? null;
-        $researcherId = $profile['lrd_researcher_id'] ?? $this->findLrdResearcherId($idCard, $idCard);
+        $researcherId = $profile['lrd_researcher_id'] ?? null;
 
         return [
             'id' => $usersId,
@@ -177,7 +201,7 @@ class SSOUserSynchronizer
             'code' => (string) ($payload['code'] ?? $payload['id'] ?? $idCard ?? ''),
             'username' => (string) ($payload['username'] ?? $idCard ?? $payload['email'] ?? $payload['id'] ?? ''),
             'citizen_id' => $idCard,
-            'lrd_researcher_id' => $payload['lrd_researcher_id'] ?? $this->findLrdResearcherId($idCard, $payload['username'] ?? null),
+            'lrd_researcher_id' => $payload['lrd_researcher_id'] ?? null,
             'passport_id' => $this->stringOrNull($payload['passport_id'] ?? null),
             'type' => $this->stringOrDefault($payload['type'] ?? null, 'TEACHER'),
             'degree' => $payload['degree'] ?? null,
