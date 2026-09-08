@@ -2,38 +2,67 @@
 
 @section('title', 'คิวอนุมัติ')
 
-@section('content')
-<div class="header-row"><div><h1>คิวอนุมัติ</h1><div class="muted">แสดงเฉพาะรายการที่ผู้ใช้ส่งเพื่อพิจารณาแล้ว</div></div><a class="btn" href="{{ route('admin.dashboard') }}">กลับแดชบอร์ด</a></div>
+@section('head')
+<style>
+    .approval-layout { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:18px; }.approval-section { margin:0; }.approval-list { display:grid; gap:12px; }.approval-item { padding:16px; border:1px solid var(--line); border-radius:14px; background:#fff; }.approval-item h3 { margin:0 0 5px; font-size:1rem; }.approval-summary { margin:10px 0; color:#52655c; font-size:.92rem; }.approval-meta { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; margin:12px 0 14px; color:var(--muted); font-size:.82rem; }.approval-meta span { min-width:0; }.approval-meta b { display:block; overflow:hidden; color:#2b443a; font-size:.85rem; text-overflow:ellipsis; white-space:nowrap; }.empty-state { padding:25px 12px; color:var(--muted); text-align:center; }.approval-actions { display:flex; gap:8px; }.approval-actions form { flex:1; }.approval-actions .btn { width:100%; }.status-chip { display:inline-flex; align-items:center; min-height:25px; padding:3px 9px; border-radius:999px; color:#855000; background:#fff1d2; font-size:.75rem; font-weight:800; }
+    @media(max-width:980px){.approval-layout{grid-template-columns:1fr}}@media(max-width:420px){.approval-actions{flex-direction:column}}
+</style>
+@endsection
 
-<div class="card" style="margin-bottom:20px">
-    <h2 style="margin-top:0">ข้อเสนอโครงการ</h2>
-    @if (! $hasProposals)
-        <p class="muted">ยังไม่มีตาราง proposals ในฐานข้อมูล จึงยังเปิดใช้คิวอนุมัติส่วนนี้ไม่ได้</p>
-    @else
-        <div class="table-wrap"><table><thead><tr><th>หัวข้อ</th><th>ผู้ส่ง</th><th>ปี</th><th>ส่งเมื่อ</th><th>ดำเนินการ</th></tr></thead><tbody>
-        @forelse($proposals as $proposal)
-            <tr><td><strong>{{ $proposal->title }}</strong><div class="muted">{{ \Illuminate\Support\Str::limit($proposal->summary, 100) }}</div></td><td>{{ $proposal->owner?->full_name_th ?: 'ไม่พบผู้ใช้' }}</td><td>{{ $proposal->year }}</td><td>{{ $proposal->created_at?->format('d/m/Y H:i') }}</td><td><div class="actions"><form class="inline" method="POST" action="{{ route('admin.approvals.proposals.update', $proposal) }}" onsubmit="return confirm('อนุมัติข้อเสนอนี้?')">@csrf @method('PUT')<input type="hidden" name="status" value="approved"><button class="btn" style="background:#1f8a4d;color:#fff">อนุมัติ</button></form><form class="inline" method="POST" action="{{ route('admin.approvals.proposals.update', $proposal) }}" onsubmit="return confirm('ปฏิเสธข้อเสนอนี้?')">@csrf @method('PUT')<input type="hidden" name="status" value="rejected"><button class="btn btn-danger">ปฏิเสธ</button></form></div></td></tr>
-        @empty
-            <tr><td colspan="5" class="muted">ไม่มีข้อเสนอที่รออนุมัติ</td></tr>
-        @endforelse
-        </tbody></table></div>
-        @if($proposals->hasPages())<nav class="pagination">{{ $proposals->links() }}</nav>@endif
-    @endif
+@section('content')
+<div class="header-row">
+    <div><div class="eyebrow">รายการที่ต้องดำเนินการ</div><h1>คิวอนุมัติ</h1><div class="muted">พิจารณาเฉพาะรายการที่ผู้ใช้ส่งมาแล้ว</div></div>
+    <a class="btn" href="{{ route('admin.dashboard') }}">กลับภาพรวม</a>
 </div>
 
-<div class="card">
-    <h2 style="margin-top:0">รายงาน</h2>
-    @if (! $hasReports)
-        <p class="muted">ยังไม่มีตาราง reports ในฐานข้อมูล จึงยังเปิดใช้คิวอนุมัติส่วนนี้ไม่ได้</p>
-    @else
-        <div class="table-wrap"><table><thead><tr><th>หัวข้อ</th><th>ผู้ส่ง</th><th>ข้อเสนอที่เกี่ยวข้อง</th><th>ส่งเมื่อ</th><th>ดำเนินการ</th></tr></thead><tbody>
-        @forelse($reports as $report)
-            <tr><td><strong>{{ $report->title }}</strong></td><td>{{ $report->owner?->full_name_th ?: 'ไม่พบผู้ใช้' }}</td><td>{{ $report->proposal?->title ?: '-' }}</td><td>{{ $report->created_at?->format('d/m/Y H:i') }}</td><td><div class="actions"><form class="inline" method="POST" action="{{ route('admin.approvals.reports.update', $report) }}" onsubmit="return confirm('อนุมัติรายงานนี้?')">@csrf @method('PUT')<input type="hidden" name="status" value="approved"><button class="btn" style="background:#1f8a4d;color:#fff">อนุมัติ</button></form><form class="inline" method="POST" action="{{ route('admin.approvals.reports.update', $report) }}" onsubmit="return confirm('ส่งกลับให้แก้ไขรายงานนี้?')">@csrf @method('PUT')<input type="hidden" name="status" value="revision_requested"><button class="btn" style="background:#c46e00;color:#fff">ให้แก้ไข</button></form></div></td></tr>
-        @empty
-            <tr><td colspan="5" class="muted">ไม่มีรายงานที่รออนุมัติ</td></tr>
-        @endforelse
-        </tbody></table></div>
-        @if($reports->hasPages())<nav class="pagination">{{ $reports->links() }}</nav>@endif
-    @endif
+<div class="approval-layout">
+    <section class="card approval-section" aria-labelledby="proposal-heading">
+        <div class="eyebrow">โครงการ</div><h2 id="proposal-heading">ข้อเสนอรออนุมัติ</h2>
+        @if (! $hasProposals)
+            <p class="empty-state">ยังไม่มีตาราง <code>proposals</code> ในฐานข้อมูล จึงยังเปิดคิวส่วนนี้ไม่ได้</p>
+        @else
+            <div class="approval-list">
+                @forelse($proposals as $proposal)
+                    <article class="approval-item">
+                        <span class="status-chip">รออนุมัติ</span>
+                        <h3>{{ $proposal->title }}</h3>
+                        @if($proposal->summary)<p class="approval-summary">{{ IlluminateSupportStr::limit($proposal->summary, 130) }}</p>@endif
+                        <div class="approval-meta"><span>ผู้ส่ง<b>{{ $proposal->owner?->full_name_th ?: 'ไม่พบผู้ใช้' }}</b></span><span>ปี<b>{{ $proposal->year ?: '-' }}</b></span><span>ส่งเมื่อ<b>{{ $proposal->created_at?->format('d/m/Y H:i') ?: '-' }}</b></span></div>
+                        <div class="approval-actions">
+                            <form method="POST" action="{{ route('admin.approvals.proposals.update', $proposal) }}" onsubmit="return confirm('ยืนยันการอนุมัติข้อเสนอนี้?')">@csrf @method('PUT')<input type="hidden" name="status" value="approved"><button class="btn btn-primary" type="submit">อนุมัติ</button></form>
+                            <form method="POST" action="{{ route('admin.approvals.proposals.update', $proposal) }}" onsubmit="return confirm('ยืนยันการปฏิเสธข้อเสนอนี้?')">@csrf @method('PUT')<input type="hidden" name="status" value="rejected"><button class="btn btn-danger" type="submit">ปฏิเสธ</button></form>
+                        </div>
+                    </article>
+                @empty
+                    <p class="empty-state">ไม่มีข้อเสนอที่รออนุมัติ</p>
+                @endforelse
+            </div>
+            @if($proposals->hasPages())<nav class="pagination" aria-label="หน้าข้อเสนอ">{{ $proposals->links() }}</nav>@endif
+        @endif
+    </section>
+
+    <section class="card approval-section" aria-labelledby="report-heading">
+        <div class="eyebrow">รายงาน</div><h2 id="report-heading">รายงานรออนุมัติ</h2>
+        @if (! $hasReports)
+            <p class="empty-state">ยังไม่มีตาราง <code>reports</code> ในฐานข้อมูล จึงยังเปิดคิวส่วนนี้ไม่ได้</p>
+        @else
+            <div class="approval-list">
+                @forelse($reports as $report)
+                    <article class="approval-item">
+                        <span class="status-chip">รออนุมัติ</span>
+                        <h3>{{ $report->title }}</h3>
+                        <div class="approval-meta"><span>ผู้ส่ง<b>{{ $report->owner?->full_name_th ?: 'ไม่พบผู้ใช้' }}</b></span><span>โครงการ<b>{{ $report->proposal?->title ?: '-' }}</b></span><span>ส่งเมื่อ<b>{{ $report->created_at?->format('d/m/Y H:i') ?: '-' }}</b></span></div>
+                        <div class="approval-actions">
+                            <form method="POST" action="{{ route('admin.approvals.reports.update', $report) }}" onsubmit="return confirm('ยืนยันการอนุมัติรายงานนี้?')">@csrf @method('PUT')<input type="hidden" name="status" value="approved"><button class="btn btn-primary" type="submit">อนุมัติ</button></form>
+                            <form method="POST" action="{{ route('admin.approvals.reports.update', $report) }}" onsubmit="return confirm('ส่งรายงานนี้กลับให้แก้ไข?')">@csrf @method('PUT')<input type="hidden" name="status" value="revision_requested"><button class="btn btn-warning" type="submit">ให้แก้ไข</button></form>
+                        </div>
+                    </article>
+                @empty
+                    <p class="empty-state">ไม่มีรายงานที่รออนุมัติ</p>
+                @endforelse
+            </div>
+            @if($reports->hasPages())<nav class="pagination" aria-label="หน้ารายงาน">{{ $reports->links() }}</nav>@endif
+        @endif
+    </section>
 </div>
 @endsection
