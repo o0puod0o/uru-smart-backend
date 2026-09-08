@@ -1,0 +1,80 @@
+Admin Web: บัญชีผู้ดูแลแยกจาก SSO
+====================================
+
+ผลลัพธ์
+--------
+
+- /admin/login ใช้ username/password จากตาราง admin_accounts เท่านั้น
+- ผู้ใช้ SSO / Mobile App ไม่สามารถเข้า /admin ได้เพียงเพราะ login สำเร็จ
+- การ login ของ mobile, Sanctum token, /auth/redirect และ SSO เดิมไม่ถูกเปลี่ยน
+- super_admin จัดการบัญชีผู้ดูแลอื่นได้ที่ /admin/accounts
+
+
+Deploy production
+-----------------
+
+1. อัปโหลด source ชุดนี้ขึ้น server
+
+2. ตั้งค่าในไฟล์ .env ของ server ชั่วคราวก่อนสร้างบัญชีแรก
+
+   ADMIN_BOOTSTRAP_USERNAME=ชื่อผู้ดูแลแรก
+   ADMIN_BOOTSTRAP_PASSWORD=รหัสผ่านยาวอย่างน้อย 12 ตัวอักษร
+   ADMIN_BOOTSTRAP_NAME=ชื่อแสดง
+   ADMIN_BOOTSTRAP_EMAIL=admin@example.com
+
+   ห้ามใช้ตัวอย่างข้างบนเป็นรหัสผ่านจริง และห้าม commit .env ขึ้น Git
+
+3. รันคำสั่งจาก project root บน server
+
+   php artisan migrate --force
+   php artisan db:seed --class=InitialAdminAccountSeeder --force
+   php artisan optimize:clear
+   php artisan config:cache
+
+4. ลบค่า ADMIN_BOOTSTRAP_PASSWORD ออกจาก .env (บัญชีที่ถูกสร้างยังอยู่ใน
+   admin_accounts และรหัสผ่านถูก hash ไว้แล้ว)
+
+5. เปิด https://<host>/admin/login แล้ว login ด้วยบัญชีที่สร้างในข้อ 2
+
+6. หลัง login แล้ว ให้สร้างบัญชีผู้ดูแลประจำคนอื่นที่เมนู
+   “บัญชีผู้ดูแล” (/admin/accounts) แทนการแชร์บัญชีแรก
+
+
+โครงสร้างฐานข้อมูลใหม่
+------------------------
+
+ตาราง admin_accounts:
+
+- username (unique)
+- name
+- email (optional, unique)
+- password (bcrypt hash)
+- role: super_admin / admin / editor
+- is_active
+- last_login_at
+
+ตารางนี้ไม่เชื่อมกับ users และไม่ใช้ citizen_id, SSO, หรือ token mobile
+
+audit_logs มี actor_admin_id เพิ่มเพื่อบันทึกว่าการจัดการใน Admin Web
+กระทำโดยบัญชี admin_accounts ใด
+
+
+สิทธิ์
+-----
+
+- super_admin: เข้า Admin Web และจัดการบัญชีผู้ดูแล
+- admin / editor: เข้า Admin Web เพื่อใช้เมนูงานทั่วไป แต่จัดการบัญชีผู้ดูแลไม่ได้
+
+หมายเหตุ: “ผู้ใช้และสิทธิ์ API” เป็น role ใน users สำหรับ API/ระบบเดิม
+ไม่ใช่สิทธิ์เข้า Admin Web
+
+
+ตรวจหลัง deploy
+----------------
+
+1. เปิด GET /admin/login ต้องเห็นช่องชื่อผู้ใช้และรหัสผ่าน ไม่มีปุ่ม SSO
+2. login ด้วย admin_accounts ต้องเข้า /admin ได้
+3. login SSO ผ่าน mobile ต้องทำงานตามเดิม และต้องไม่สร้าง session ของ /admin
+4. บัญชี admin_accounts ที่ is_active = 0 ต้องเข้า /admin ไม่ได้
+5. super_admin ต้องเห็นเมนู “บัญชีผู้ดูแล” แต่ admin/editor ต้องไม่เห็นและ
+   ได้ 403 หากพยายามเปิด URL โดยตรง

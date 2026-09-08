@@ -4,7 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Proposal;
 use App\Models\Report;
-use App\Services\AuditService;
+use App\Services\AdminAuditService;
 use App\Services\NotificationDeliveryService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -15,7 +15,7 @@ use Illuminate\View\View;
 class AdminApprovalController extends Controller
 {
     public function __construct(
-        private readonly AuditService $audit,
+        private readonly AdminAuditService $audit,
         private readonly NotificationDeliveryService $notifications,
     ) {
     }
@@ -55,7 +55,7 @@ class AdminApprovalController extends Controller
 
         $before = $proposal->toArray();
         $proposal->update(['status' => $data['status']]);
-        $this->audit->record($request, 'proposal_'.$data['status'], $proposal, $before);
+        $this->audit->recordModel($request, 'proposal_'.$data['status'], $proposal, $before);
 
         if ($proposal->owner) {
             $this->notifications->deliverToUser(
@@ -82,7 +82,7 @@ class AdminApprovalController extends Controller
 
         $before = $report->toArray();
         $report->update(['status' => $data['status']]);
-        $this->audit->record($request, 'report_'.$data['status'], $report, $before);
+        $this->audit->recordModel($request, 'report_'.$data['status'], $report, $before);
 
         if ($report->owner) {
             $this->notifications->deliverToUser(

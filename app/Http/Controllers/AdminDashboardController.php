@@ -6,6 +6,7 @@ use App\Models\Proposal;
 use App\Models\PushToken;
 use App\Models\Report;
 use App\Models\User;
+use App\Models\AdminAccount;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\View\View;
 
@@ -21,7 +22,7 @@ class AdminDashboardController extends Controller
         $statistics = [
             'users' => User::query()->count(),
             'active_users' => User::query()->where('status', 'ACTIVE')->count(),
-            'admins' => $hasRoleColumn ? User::query()->where('role', 'admin')->count() : 0,
+            'admins' => AdminAccount::query()->where('is_active', true)->count(),
             'push_enabled_users' => $hasPushTokens ? PushToken::query()
                 ->where('provider', 'expo')
                 ->where('is_active', true)

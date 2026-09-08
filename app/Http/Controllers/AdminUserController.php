@@ -5,7 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Department;
 use App\Models\SubDepartment;
 use App\Models\User;
-use App\Services\AuditService;
+use App\Services\AdminAuditService;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -96,7 +96,7 @@ class AdminUserController extends Controller
         return redirect()->route('admin.users.show', $user)->with('success', 'บันทึกข้อมูลผู้ใช้แล้ว');
     }
 
-    public function updateRole(Request $request, User $user, AuditService $audit): RedirectResponse
+    public function updateRole(Request $request, User $user, AdminAuditService $audit): RedirectResponse
     {
         if (! Schema::hasColumn('users', 'role')) {
             return back()->with('error', 'ฐานข้อมูลยังไม่มีคอลัมน์ role กรุณารัน migration ก่อนจัดการสิทธิ์');
@@ -116,7 +116,7 @@ class AdminUserController extends Controller
 
         $before = $user->toArray();
         $user->update(['role' => $data['role']]);
-        $audit->record($request, 'web_role_change', $user, $before);
+        $audit->recordModel($request, 'web_role_change', $user, $before);
 
         return back()->with('success', 'อัปเดตสิทธิ์ผู้ใช้เรียบร้อยแล้ว');
     }

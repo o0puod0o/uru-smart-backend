@@ -2,12 +2,13 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AdminApprovalController;
+use App\Http\Controllers\AdminAccountController;
+use App\Http\Controllers\AdminAuthController;
 use App\Http\Controllers\AdminDashboardController;
 use App\Http\Controllers\AdminNotificationController;
 use App\Http\Controllers\AdminUserController;
 use App\Http\Controllers\SsoCallbackController;
 use App\Http\Controllers\SsoRedirectController;
-use App\Http\Controllers\WebAdminAuthController;
 use Illuminate\Support\Facades\DB;
 
 /*
@@ -76,15 +77,14 @@ Route::get('/auth/callback', SsoCallbackController::class)->name('auth.callback'
 Route::get('/auth/sso-url', [SsoRedirectController::class, 'url'])->name('auth.sso-url');
 Route::get('/auth/redirect', [SsoRedirectController::class, 'redirect'])->name('auth.redirect');
 
-Route::middleware('guest')->group(function () {
-    Route::get('/admin/login', [WebAdminAuthController::class, 'create'])->name('login');
-    Route::get('/admin/sso/redirect', [WebAdminAuthController::class, 'redirectToSso'])->name('admin.sso.redirect');
-    Route::post('/admin/login', [WebAdminAuthController::class, 'store'])->name('admin.login');
+Route::middleware('guest:admin')->group(function () {
+    Route::get('/admin/login', [AdminAuthController::class, 'create'])->name('login');
+    Route::post('/admin/login', [AdminAuthController::class, 'store'])->name('admin.login');
 });
 
-Route::middleware(['auth', 'web.admin'])->prefix('admin')->name('admin.')->group(function () {
+Route::middleware(['auth:admin', 'admin.account'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/', [AdminDashboardController::class, 'index'])->name('dashboard');
-    Route::post('/logout', [WebAdminAuthController::class, 'destroy'])->name('logout');
+    Route::post('/logout', [AdminAuthController::class, 'destroy'])->name('logout');
 
     Route::resource('users', AdminUserController::class)->except('create', 'store');
     Route::put('/users/{user}/role', [AdminUserController::class, 'updateRole'])->name('users.role');
@@ -95,4 +95,9 @@ Route::middleware(['auth', 'web.admin'])->prefix('admin')->name('admin.')->group
     Route::get('/approvals', [AdminApprovalController::class, 'index'])->name('approvals.index');
     Route::put('/approvals/proposals/{proposal}', [AdminApprovalController::class, 'updateProposal'])->name('approvals.proposals.update');
     Route::put('/approvals/reports/{report}', [AdminApprovalController::class, 'updateReport'])->name('approvals.reports.update');
+
+    Route::middleware('admin.super')->group(function () {
+        Route::resource('accounts', AdminAccountController::class)
+            ->only(['index', 'create', 'store', 'edit', 'update']);
+    });
 });

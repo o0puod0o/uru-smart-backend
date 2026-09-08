@@ -3,17 +3,17 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
-use App\Models\AuditLog;
+use App\Services\AdminAuditService;
 use App\Services\NotificationDeliveryService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class AdminNotificationController extends Controller
 {
     public function __construct(
+        private readonly AdminAuditService $audit,
         private readonly NotificationDeliveryService $notifications,
     ) {
     }
@@ -78,23 +78,19 @@ class AdminNotificationController extends Controller
             $message = "ส่งการแจ้งเตือนถึงผู้ใช้ที่ใช้งานอยู่ {$delivered} คนแล้ว";
         }
 
-        if (Schema::hasTable('audit_logs')) {
-            AuditLog::create([
-                'actor_user_id' => $request->user()->id,
-                'action' => 'admin_notification_sent',
-                'entity_type' => 'admin_notification',
-                'entity_id' => $data['recipient'] === 'user' ? (int) $data['user_id'] : null,
-                'after' => [
-                    'recipient' => $data['recipient'],
-                    'recipient_user_id' => $data['recipient'] === 'user' ? (int) $data['user_id'] : null,
-                    'title' => $data['title'],
-                    'body' => $data['body'] ?? null,
-                    'delivered_count' => $data['recipient'] === 'user' ? 1 : $delivered,
-                ],
-                'ip_address' => $request->ip(),
-                'created_at' => now(),
-            ]);
-        }
+        $this->audit->recordEvent(
+            $request,
+            'admin_notification_sent',
+            'admin_notification',
+            $data['recipient'] === 'user' ? (int) $data['user_id'] : null,
+            [
+                'recipient' => $data['recipient'],
+                'recipient_user_id' => $data['recipient'] === 'user' ? (int) $data['user_id'] : null,
+                'title' => $data['title'],
+                'body' => $data['body'] ?? null,
+                'delivered_count' => $data['recipient'] === 'user' ? 1 : $delivered,
+            ],
+        );
 
         return redirect()->route('admin.notifications.create')->with('success', $message);
     }
