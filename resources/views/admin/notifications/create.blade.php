@@ -25,7 +25,7 @@
             <div class="field"><label for="body">ข้อความ <span class="muted" style="font-weight:500">(ไม่บังคับ)</span></label><textarea id="body" name="body" rows="6" maxlength="1000">{{ old('body') }}</textarea></div>
             <div class="broadcast-warning" id="broadcast-confirmation" hidden>
                 <strong>กำลังส่งถึงผู้ใช้ในแอปที่ใช้งานอยู่ทั้งหมด</strong>
-                <label class="check-row"><input type="checkbox" name="confirm_broadcast" value="1" @checked(old('confirm_broadcast'))><span>ยืนยันส่งข้อความและ Push ไปยังอุปกรณ์ที่ลงทะเบียนไว้</span></label>
+                <label class="check-row"><input type="checkbox" name="confirm_broadcast" value="1" @checked(old('confirm_broadcast', true))><span>ยืนยันส่งข้อความและ Push ไปยังอุปกรณ์ที่ลงทะเบียนไว้</span></label>
             </div>
             <div class="form-footer"><button class="btn btn-primary" type="submit" onclick="return confirm('ยืนยันส่งการแจ้งเตือนตามผู้รับที่เลือก?')">ส่งการแจ้งเตือน</button></div>
         </form>
