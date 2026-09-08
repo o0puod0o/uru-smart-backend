@@ -79,4 +79,10 @@ return [
         'legacy_urusmart' => env('URUSMART_LEGACY_MODULE_ROUTES', true),
     ],
 
+    'info_admin' => [
+        'base_url' => env('INFO_ADMIN_BASE_URL', 'https://info.uru.ac.th/server/api'),
+        'service_key' => env('INFO_ADMIN_SERVICE_KEY'),
+        'timeout' => (int) env('INFO_ADMIN_TIMEOUT', 7),
+    ],
+
 ];

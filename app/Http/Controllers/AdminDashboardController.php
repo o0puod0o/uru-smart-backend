@@ -7,11 +7,16 @@ use App\Models\PushToken;
 use App\Models\Report;
 use App\Models\User;
 use App\Models\AdminAccount;
+use App\Services\InfoAdminSummaryService;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\View\View;
 
 class AdminDashboardController extends Controller
 {
+    public function __construct(private readonly InfoAdminSummaryService $infoSummary)
+    {
+    }
+
     public function index(): View
     {
         $hasProposals = Schema::hasTable('proposals');
@@ -36,6 +41,8 @@ class AdminDashboardController extends Controller
                 : 0,
         ];
 
-        return view('admin.dashboard', compact('statistics', 'hasProposals', 'hasReports', 'hasRoleColumn', 'hasPushTokens'));
+        $info = $this->infoSummary->summary();
+
+        return view('admin.dashboard', compact('statistics', 'hasProposals', 'hasReports', 'hasRoleColumn', 'hasPushTokens', 'info'));
     }
 }
