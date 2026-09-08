@@ -9,6 +9,14 @@
         <dt>หน่วยงานหลัก</dt><dd>{{ $user->department_name_th ?: '-' }}</dd><dt>หน่วยงานย่อย</dt><dd>{{ $user->subDepartment?->name ?: '-' }}</dd><dt>ตำแหน่ง</dt><dd>{{ $user->position ?: '-' }}</dd><dt>สาขา</dt><dd>{{ $user->branch ?: '-' }}</dd>
         <dt>ที่อยู่</dt><dd>{{ collect([$user->address, $user->moo ? 'หมู่ '.$user->moo : null, $user->road, $user->tambon, $user->amphoe, $user->province, $user->zipcode])->filter()->join(' ') ?: '-' }}</dd><dt>แนะนำตัว</dt><dd>{{ $user->bio ?: '-' }}</dd>
     </dl>
+    <section style="margin-top:24px;padding-top:18px;border-top:1px solid #e6eaf0">
+        <h2>สิทธิ์การใช้งาน</h2>
+        <p class="muted">สิทธิ์นี้กำหนดการเข้าถึง API ที่ต้องเป็นผู้ดูแลและหน้า WebView นี้ โดยรายชื่ออีเมลใน config ยังคงเป็นทางเข้าเริ่มต้น/กู้คืนสำหรับผู้ดูแล</p>
+        <form method="POST" action="{{ route('admin.users.role', $user) }}" class="actions">@csrf @method('PUT')
+            <select name="role" style="max-width:220px"><option value="user" @selected($user->role !== 'admin')>ผู้ใช้ทั่วไป</option><option value="admin" @selected($user->role === 'admin')>ผู้ดูแลระบบ</option></select>
+            <button class="btn btn-primary" type="submit" onclick="return confirm('ยืนยันการเปลี่ยนสิทธิ์ของผู้ใช้นี้?')">บันทึกสิทธิ์</button>
+        </form>
+    </section>
     <div class="danger-zone"><form method="POST" action="{{ route('admin.users.destroy', $user) }}" onsubmit="return confirm('ยืนยันการลบผู้ใช้นี้? ข้อมูลที่เกี่ยวข้องอาจถูกลบด้วย')">@csrf @method('DELETE')<button class="btn btn-danger" type="submit">ลบผู้ใช้</button></form></div>
 </div>
 @endsection

@@ -70,4 +70,29 @@ class NotificationDeliveryService
 
         return $delivered;
     }
+
+    /**
+     * Deliver an administrator announcement to accounts that are currently active.
+     * Inactive SSO accounts are deliberately excluded from manual broadcasts.
+     */
+    public function deliverToActiveUsers(
+        string $title,
+        ?string $body,
+        string $type,
+        array $data = []
+    ): int {
+        $delivered = 0;
+
+        User::query()
+            ->where('status', 'ACTIVE')
+            ->orderBy('id')
+            ->chunkById(200, function ($users) use ($title, $body, $type, $data, &$delivered): void {
+                foreach ($users as $user) {
+                    $this->deliverToUser($user, $title, $body, $type, $data);
+                    $delivered++;
+                }
+            });
+
+        return $delivered;
+    }
 }

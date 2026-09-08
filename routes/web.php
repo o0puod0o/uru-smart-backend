@@ -1,6 +1,9 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\AdminApprovalController;
+use App\Http\Controllers\AdminDashboardController;
+use App\Http\Controllers\AdminNotificationController;
 use App\Http\Controllers\AdminUserController;
 use App\Http\Controllers\SsoCallbackController;
 use App\Http\Controllers\SsoRedirectController;
@@ -80,7 +83,16 @@ Route::middleware('guest')->group(function () {
 });
 
 Route::middleware(['auth', 'web.admin'])->prefix('admin')->name('admin.')->group(function () {
-    Route::get('/', fn () => redirect()->route('admin.users.index'))->name('dashboard');
+    Route::get('/', [AdminDashboardController::class, 'index'])->name('dashboard');
     Route::post('/logout', [WebAdminAuthController::class, 'destroy'])->name('logout');
+
     Route::resource('users', AdminUserController::class)->except('create', 'store');
+    Route::put('/users/{user}/role', [AdminUserController::class, 'updateRole'])->name('users.role');
+
+    Route::get('/notifications/create', [AdminNotificationController::class, 'create'])->name('notifications.create');
+    Route::post('/notifications', [AdminNotificationController::class, 'store'])->name('notifications.store');
+
+    Route::get('/approvals', [AdminApprovalController::class, 'index'])->name('approvals.index');
+    Route::put('/approvals/proposals/{proposal}', [AdminApprovalController::class, 'updateProposal'])->name('approvals.proposals.update');
+    Route::put('/approvals/reports/{report}', [AdminApprovalController::class, 'updateReport'])->name('approvals.reports.update');
 });

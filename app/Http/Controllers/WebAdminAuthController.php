@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Services\SSOService;
 use App\Services\SSOUserSynchronizer;
+use App\Support\AdminAccess;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -45,12 +46,7 @@ class WebAdminAuthController extends Controller
             $ssoUser = $this->sso->getUserInfo($token['access_token']);
             $user = $this->users->sync($ssoUser);
 
-            $allowedEmails = config('admin.emails', []);
-            if (config('sso.mock')) {
-                $allowedEmails[] = config('sso.mock_email');
-            }
-
-            if (! in_array(strtolower((string) $user->email), array_map('strtolower', array_filter($allowedEmails)), true)) {
+            if (! AdminAccess::allows($user)) {
                 return back()->withInput($request->only('email'))
                     ->withErrors(['email' => 'บัญชีนี้ไม่มีสิทธิ์เข้าใช้งานระบบจัดการ']);
             }
@@ -58,7 +54,7 @@ class WebAdminAuthController extends Controller
             Auth::login($user);
             $request->session()->regenerate();
 
-            return redirect()->intended(route('admin.users.index'));
+            return redirect()->intended(route('admin.dashboard'));
         } catch (Throwable $exception) {
             report($exception);
 

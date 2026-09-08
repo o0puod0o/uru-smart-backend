@@ -5,10 +5,12 @@ namespace App\Http\Controllers;
 use App\Models\Department;
 use App\Models\SubDepartment;
 use App\Models\User;
+use App\Services\AuditService;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
@@ -92,6 +94,31 @@ class AdminUserController extends Controller
         $user->update($data);
 
         return redirect()->route('admin.users.show', $user)->with('success', 'บันทึกข้อมูลผู้ใช้แล้ว');
+    }
+
+    public function updateRole(Request $request, User $user, AuditService $audit): RedirectResponse
+    {
+        if (! Schema::hasColumn('users', 'role')) {
+            return back()->with('error', 'ฐานข้อมูลยังไม่มีคอลัมน์ role กรุณารัน migration ก่อนจัดการสิทธิ์');
+        }
+
+        $data = $request->validate([
+            'role' => ['required', Rule::in(['user', 'admin'])],
+        ]);
+
+        if ($user->is(Auth::user()) && $data['role'] !== 'admin') {
+            return back()->with('error', 'ไม่สามารถถอนสิทธิ์ผู้ดูแลของบัญชีที่กำลังใช้งานอยู่ได้');
+        }
+
+        if ($user->role === $data['role']) {
+            return back()->with('success', 'สิทธิ์ของผู้ใช้นี้เป็นค่านี้อยู่แล้ว');
+        }
+
+        $before = $user->toArray();
+        $user->update(['role' => $data['role']]);
+        $audit->record($request, 'web_role_change', $user, $before);
+
+        return back()->with('success', 'อัปเดตสิทธิ์ผู้ใช้เรียบร้อยแล้ว');
     }
 
     public function destroy(User $user): RedirectResponse

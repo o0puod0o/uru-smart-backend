@@ -13,6 +13,14 @@
     <header class="topbar"><div class="wrap"><div class="brand">URU Smart Admin</div><nav class="nav"><a href="{{ route('admin.users.index') }}">จัดการผู้ใช้</a><span>{{ auth()->user()->full_name_th }}</span><form method="POST" action="{{ route('admin.logout') }}">@csrf<button class="btn btn-link" type="submit">ออกจากระบบ</button></form></nav></div></header>
 @endauth
 <main class="@auth page @endauth"><div class="@auth wrap @endauth">
+    @auth
+        <nav style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
+            <a class="btn" href="{{ route('admin.dashboard') }}">แดชบอร์ด</a>
+            <a class="btn" href="{{ route('admin.users.index') }}">ผู้ใช้และสิทธิ์</a>
+            <a class="btn" href="{{ route('admin.approvals.index') }}">รออนุมัติ</a>
+            <a class="btn" href="{{ route('admin.notifications.create') }}">ส่งแจ้งเตือน</a>
+        </nav>
+    @endauth
     @if(session('success'))<div class="alert success">{{ session('success') }}</div>@endif
     @if(session('error'))<div class="alert error">{{ session('error') }}</div>@endif
     @yield('content')

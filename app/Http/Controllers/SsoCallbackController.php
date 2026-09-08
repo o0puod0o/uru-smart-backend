@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use App\Services\SSOService;
 use App\Services\SSOUserSynchronizer;
+use App\Support\AdminAccess;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -141,11 +142,7 @@ class SsoCallbackController extends Controller
                 ->withErrors(['email' => 'SSO admin state ไม่ถูกต้อง กรุณาลองเข้าสู่ระบบใหม่']);
         }
 
-        $allowedEmails = config('admin.emails', []);
-        $allowedEmails = array_map('strtolower', array_filter($allowedEmails));
-        $email = strtolower((string) $user->email);
-
-        if ($email === '' || ! in_array($email, $allowedEmails, true)) {
+        if (! AdminAccess::allows($user)) {
             return redirect()->route('login')
                 ->withErrors(['email' => 'บัญชีนี้ไม่มีสิทธิ์เข้าใช้งานระบบจัดการ']);
         }
@@ -153,7 +150,7 @@ class SsoCallbackController extends Controller
         Auth::login($user);
         $request->session()->regenerate();
 
-        return redirect()->intended(route('admin.users.index'));
+        return redirect()->intended(route('admin.dashboard'));
     }
 
     private function logTiming(string $event, float $startedAt, array $context = []): void
