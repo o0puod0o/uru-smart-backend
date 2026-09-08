@@ -161,7 +161,11 @@ class ProfileTest extends TestCase
 
         Sanctum::actingAs($user);
 
-        $this->postJson('/api/push-token', ['push_token' => 'ExponentPushToken[abc123]'])
+        $this->postJson('/api/push-token', [
+            'push_token' => 'ExponentPushToken[abc123]',
+            'provider' => 'expo',
+            'platform' => 'android',
+        ])
             ->assertOk();
 
         $this->assertDatabaseHas('users', [

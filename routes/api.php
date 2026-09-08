@@ -81,6 +81,7 @@ Route::middleware('auth:sanctum')->group(function () use ($registerLegacyUruSmar
     Route::delete('me/photo', [ProfileController::class, 'deletePhoto']);
     Route::post('push-token', [PushTokenController::class, 'store']);
     Route::delete('push-token', [PushTokenController::class, 'destroy']);
+    Route::get('notification-settings', [NotificationSettingController::class, 'show']);
     Route::put('notification-settings', [NotificationSettingController::class, 'update']);
     Route::get('notifications', [NotificationController::class, 'index']);
     Route::get('notifications/unread-count', [NotificationController::class, 'unreadCount']);

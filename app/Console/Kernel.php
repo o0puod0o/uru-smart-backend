@@ -16,6 +16,10 @@ class Kernel extends ConsoleKernel
             ->everyMinute()
             ->withoutOverlapping();
 
+        $schedule->command('push:check-expo-receipts --limit=1000')
+            ->everyTenMinutes()
+            ->withoutOverlapping();
+
         $schedule->command('profile-interests:sync --limit=5000')
             ->dailyAt('02:20')
             ->withoutOverlapping();

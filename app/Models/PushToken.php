@@ -33,4 +33,9 @@ class PushToken extends Model
     {
         return $this->belongsTo(User::class);
     }
+
+    public function expoPushTickets()
+    {
+        return $this->hasMany(ExpoPushTicket::class);
+    }
 }

@@ -430,17 +430,7 @@ class ProfileController extends Controller
      */
     public function pushToken(Request $request)
     {
-        $request->validate([
-            'push_token' => 'required|string|max:255',
-        ]);
-
-        $user = $request->user();
-        $user->push_token = $request->input('push_token');
-        $user->save();
-
-        return response()->json([
-            'message' => 'Push token saved successfully',
-        ]);
+        return app(PushTokenController::class)->store($request);
     }
 
     /**

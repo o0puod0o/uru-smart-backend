@@ -33,6 +33,7 @@ return [
 
     'expo_push' => [
         'endpoint' => env('EXPO_PUSH_ENDPOINT', 'https://exp.host/--/api/v2/push/send'),
+        'receipt_endpoint' => env('EXPO_PUSH_RECEIPT_ENDPOINT', 'https://exp.host/--/api/v2/push/getReceipts'),
         'access_token' => env('EXPO_PUSH_ACCESS_TOKEN'),
     ],
 

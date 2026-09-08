@@ -2,11 +2,12 @@
 
 namespace App\Services;
 
+use App\Models\ExpoPushTicket;
 use App\Models\NotificationSetting;
 use App\Models\PushToken;
 use App\Models\User;
-use Illuminate\Http\Client\Response;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Throwable;
@@ -56,7 +57,7 @@ class PushNotificationService
         array $data,
         ?string $category,
     ): array {
-        $category ??= $this->categoryFromData($data);
+        $category = $this->notificationSettingCategory($category ?? $this->categoryFromData($data));
         $seenTokens = [];
         $summary = $this->emptySummary();
 
@@ -93,7 +94,7 @@ class PushNotificationService
         ?string $category = null
     ): array {
         $userId = $user instanceof User ? $user->getKey() : $user;
-        $category ??= $this->categoryFromData($data);
+        $category = $this->notificationSettingCategory($category ?? $this->categoryFromData($data));
 
         $tokens = PushToken::query()
             ->with('user.notificationSetting')
@@ -145,7 +146,6 @@ class PushNotificationService
             if ($response->failed()) {
                 Log::warning('Failed to send push notifications.', [
                     'status' => $response->status(),
-                    'body' => $response->body(),
                 ]);
 
                 return ['attempted' => $attempted, 'accepted' => 0];
@@ -168,7 +168,8 @@ class PushNotificationService
                 ]);
             }
 
-            $this->removeUnregisteredTokens($tokens, $response);
+            $this->recordExpoTickets($tokens, $tickets);
+            $this->removeUnregisteredTokens($tokens, $tickets);
 
             return [
                 'attempted' => $attempted,
@@ -197,23 +198,144 @@ class PushNotificationService
         ];
     }
 
-    private function removeUnregisteredTokens(Collection $tokens, Response $response): void
+    /**
+     * Persist every Expo ticket response. Successful tickets are checked later
+     * through Expo's receipt endpoint; error tickets are retained for auditing.
+     */
+    private function recordExpoTickets(Collection $tokens, array $tickets): void
     {
-        $tickets = $response->json('data', []);
+        foreach ($tickets as $index => $ticket) {
+            $token = $tokens->get($index);
 
+            if (! $token instanceof PushToken || ! is_array($ticket)) {
+                continue;
+            }
+
+            $attributes = [
+                'push_token_id' => $token->id,
+                'ticket_status' => data_get($ticket, 'status'),
+                'ticket_details' => $ticket,
+            ];
+            $ticketId = trim((string) data_get($ticket, 'id'));
+
+            if ($ticketId === '') {
+                ExpoPushTicket::create($attributes);
+                continue;
+            }
+
+            ExpoPushTicket::updateOrCreate(['ticket_id' => $ticketId], $attributes);
+        }
+    }
+
+    private function removeUnregisteredTokens(Collection $tokens, array $tickets): void
+    {
         foreach ($tickets as $index => $ticket) {
             if (data_get($ticket, 'details.error') !== 'DeviceNotRegistered') {
                 continue;
             }
 
-            $tokenModel = $tokens->get($index);
-            $pushToken = $tokenModel ? $tokenModel->push_token : null;
+            $token = $tokens->get($index);
 
-            if ($pushToken) {
-                PushToken::where('push_token', $pushToken)->delete();
-                User::where('push_token', $pushToken)->update(['push_token' => null]);
+            if ($token instanceof PushToken) {
+                $this->disableToken($token);
             }
         }
+    }
+
+    /**
+     * Check accepted Expo tickets after sending. Expo recommends checking later
+     * because ticket acceptance is not final device delivery.
+     */
+    public function checkPendingReceipts(int $limit = 1000): array
+    {
+        $tickets = ExpoPushTicket::query()
+            ->where('ticket_status', 'ok')
+            ->whereNotNull('ticket_id')
+            ->whereNull('receipt_checked_at')
+            ->orderBy('id')
+            ->limit(max(1, min($limit, 1000)))
+            ->get();
+
+        $summary = ['checked' => 0, 'device_not_registered' => 0, 'pending' => $tickets->count()];
+
+        foreach ($tickets->chunk(1000) as $chunk) {
+            $ids = $chunk->pluck('ticket_id')->filter()->values()->all();
+
+            if ($ids === []) {
+                continue;
+            }
+
+            try {
+                $request = Http::timeout(10)->acceptJson();
+                $accessToken = config('services.expo_push.access_token');
+
+                if ($accessToken) {
+                    $request = $request->withToken($accessToken);
+                }
+
+                $response = $request->post(
+                    config('services.expo_push.receipt_endpoint', 'https://exp.host/--/api/v2/push/getReceipts'),
+                    ['ids' => $ids],
+                );
+
+                if ($response->failed()) {
+                    Log::warning('Expo push receipt request failed.', ['status' => $response->status()]);
+                    continue;
+                }
+
+                $receipts = $response->json('data', []);
+
+                foreach ($chunk as $ticket) {
+                    $receipt = $receipts[$ticket->ticket_id] ?? null;
+
+                    if (! is_array($receipt)) {
+                        continue;
+                    }
+
+                    $ticket->forceFill([
+                        'receipt_status' => data_get($receipt, 'status'),
+                        'receipt_details' => $receipt,
+                        'receipt_checked_at' => now(),
+                    ])->save();
+                    $summary['checked']++;
+
+                    if (data_get($receipt, 'details.error') === 'DeviceNotRegistered') {
+                        $token = $ticket->pushToken;
+
+                        if ($token instanceof PushToken) {
+                            $this->disableToken($token);
+                            $summary['device_not_registered']++;
+                        }
+                    }
+                }
+            } catch (Throwable $exception) {
+                Log::warning('Expo push receipt request failed.', ['message' => $exception->getMessage()]);
+            }
+        }
+
+        return $summary;
+    }
+
+    private function disableToken(PushToken $token): void
+    {
+        DB::transaction(function () use ($token): void {
+            $currentToken = PushToken::query()
+                ->lockForUpdate()
+                ->find($token->id);
+
+            if (! $currentToken) {
+                return;
+            }
+
+            $pushToken = $currentToken->push_token;
+            $ownerId = $currentToken->user_id;
+            $currentToken->delete();
+
+            User::query()
+                ->whereKey($ownerId)
+                ->where('push_token', $pushToken)
+                ->update(['push_token' => null]);
+        });
     }
 
     private function userAllows(PushToken $token, ?string $category): bool
@@ -239,5 +361,13 @@ class PushNotificationService
         return in_array($type, array_keys(NotificationSetting::DEFAULTS), true)
             ? $type
             : null;
+    }
+
+    private function notificationSettingCategory(?string $category): ?string
+    {
+        return match ($category) {
+            'admin_announcement' => 'announcement',
+            default => $category,
+        };
     }
 }
