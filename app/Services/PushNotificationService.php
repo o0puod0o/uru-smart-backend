@@ -151,13 +151,28 @@ class PushNotificationService
                 return ['attempted' => $attempted, 'accepted' => 0];
             }
 
+            $tickets = $response->json('data', []);
+            $accepted = collect($tickets)
+                ->where('status', 'ok')
+                ->count();
+
+            if ($accepted !== $attempted) {
+                Log::warning('Expo push tickets were not accepted.', [
+                    'attempted' => $attempted,
+                    'accepted' => $accepted,
+                    'ticket_errors' => collect($tickets)
+                        ->map(fn ($ticket) => data_get($ticket, 'details.error'))
+                        ->filter()
+                        ->countBy()
+                        ->all(),
+                ]);
+            }
+
             $this->removeUnregisteredTokens($tokens, $response);
 
             return [
                 'attempted' => $attempted,
-                'accepted' => collect($response->json('data', []))
-                    ->where('status', 'ok')
-                    ->count(),
+                'accepted' => $accepted,
             ];
         } catch (Throwable $exception) {
             // A notification provider outage must never make the API request fail.
