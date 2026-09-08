@@ -28,11 +28,13 @@ class AdminDashboardController extends Controller
             'users' => User::query()->count(),
             'active_users' => User::query()->where('status', 'ACTIVE')->count(),
             'admins' => AdminAccount::query()->where('is_active', true)->count(),
-            'push_enabled_users' => $hasPushTokens ? PushToken::query()
+            'push_ready_devices' => $hasPushTokens ? PushToken::query()
                 ->where('provider', 'expo')
                 ->where('is_active', true)
-                ->distinct('user_id')
-                ->count('user_id') : 0,
+                ->whereNotNull('push_token')
+                ->where('push_token', '!=', '')
+                ->distinct('push_token')
+                ->count('push_token') : 0,
             'pending_proposals' => $hasProposals
                 ? Proposal::query()->where('status', 'submitted')->count()
                 : 0,

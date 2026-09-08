@@ -24,9 +24,9 @@
 </section>
 
 <section class="stats" aria-label="สถิติระบบ">
-    <article class="stat-card"><div class="stat-label">ผู้ใช้ทั้งหมด</div><div class="stat-value">{{ number_format($statistics['users']) }}</div></article>
-    <article class="stat-card"><div class="stat-label">บัญชีที่ใช้งานอยู่</div><div class="stat-value">{{ number_format($statistics['active_users']) }}</div></article>
-    <article class="stat-card"><div class="stat-label">ผู้ใช้ที่เปิด Push</div><div class="stat-value">{{ number_format($statistics['push_enabled_users']) }}</div></article>
+    <article class="stat-card"><div class="stat-label">ผู้ใช้ในแอป</div><div class="stat-value">{{ number_format($statistics['users']) }}</div></article>
+    <article class="stat-card"><div class="stat-label">บัญชีที่ใช้งาน</div><div class="stat-value">{{ number_format($statistics['active_users']) }}</div></article>
+    <article class="stat-card"><div class="stat-label">อุปกรณ์รับ Push</div><div class="stat-value">{{ number_format($statistics['push_ready_devices']) }}</div></article>
     <article class="stat-card attention"><div class="stat-label">ข้อเสนอรออนุมัติ</div><div class="stat-value">{{ number_format($statistics['pending_proposals']) }}</div></article>
     <article class="stat-card attention"><div class="stat-label">รายงานรออนุมัติ</div><div class="stat-value">{{ number_format($statistics['pending_reports']) }}</div></article>
     <article class="stat-card"><div class="stat-label">บัญชีผู้ดูแลที่เปิดใช้งาน</div><div class="stat-value">{{ number_format($statistics['admins']) }}</div></article>
@@ -46,10 +46,10 @@
 </section>
 
 <section class="card" aria-labelledby="info-data-title">
-    <div class="eyebrow">Info Server · อ่านข้อมูลรวม</div>
+    <div class="eyebrow">ข้อมูลนักวิจัย</div>
     <h2 id="info-data-title">ข้อมูลโมดูล Expert และ LRD</h2>
     @if($info['available'] ?? false)
-        <div class="muted">ข้อมูลสรุปนี้มาจาก Info โดยตรง และไม่ส่ง service key หรือข้อมูลรายบุคคลมาที่ browser</div>
+        <div class="muted">อัปเดตจากระบบข้อมูลกลาง</div>
         <div class="info-stats">
             <div class="info-stat"><span class="muted">โปรไฟล์ Expert</span><b>{{ number_format((int) data_get($info, 'data.expert.profiles', 0)) }}</b></div>
             <div class="info-stat"><span class="muted">ความสนใจ</span><b>{{ number_format((int) data_get($info, 'data.expert.interests', 0)) }}</b></div>
@@ -61,12 +61,4 @@
     @endif
 </section>
 
-<section class="card" aria-labelledby="security-title">
-    <div class="eyebrow">ขอบเขตความปลอดภัย</div>
-    <h2 id="security-title">Admin WebView แยกจาก SSO</h2>
-    <p class="system-note">หน้านี้ใช้ session ของบัญชีใน <code>admin_accounts</code> เท่านั้น ไม่ใช้ SSO หรือ Bearer token ของผู้ใช้ mobile การปรับ “สิทธิ์ API” ของผู้ใช้ไม่ได้ทำให้คนนั้นเข้าสู่หน้า Admin ได้</p>
-    @if (! $hasProposals || ! $hasReports || ! $hasRoleColumn || ! $hasPushTokens)
-        <p class="muted" style="margin:14px 0 0">บางโมดูลยังไม่มีตารางหรือคอลัมน์ที่ต้องใช้ในฐานข้อมูลชุดนี้ จึงแสดงค่าเป็นศูนย์จนกว่าจะติดตั้ง migration ของโมดูลนั้นครบ</p>
-    @endif
-</section>
 @endsection

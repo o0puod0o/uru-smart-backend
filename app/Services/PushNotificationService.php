@@ -18,18 +18,55 @@ class PushNotificationService
         ?string $body = null,
         array $data = [],
         ?string $category = null
-    ): void {
+    ): array {
+        return $this->sendToEligibleTokens(
+            PushToken::query()->with('user.notificationSetting'),
+            $title,
+            $body,
+            $data,
+            $category,
+        );
+    }
+
+    /**
+     * Send only to devices whose owning account is currently ACTIVE.
+     * "accepted" means Expo accepted a ticket, not a guaranteed device receipt.
+     */
+    public function sendToActiveUsers(
+        string $title,
+        ?string $body = null,
+        array $data = [],
+        ?string $category = null
+    ): array {
+        return $this->sendToEligibleTokens(
+            PushToken::query()
+                ->with('user.notificationSetting')
+                ->whereHas('user', fn ($query) => $query->where('status', 'ACTIVE')),
+            $title,
+            $body,
+            $data,
+            $category,
+        );
+    }
+
+    private function sendToEligibleTokens(
+        $query,
+        string $title,
+        ?string $body,
+        array $data,
+        ?string $category,
+    ): array {
         $category ??= $this->categoryFromData($data);
         $seenTokens = [];
+        $summary = $this->emptySummary();
 
-        PushToken::query()
-            ->with('user.notificationSetting')
+        $query
             ->where('provider', 'expo')
             ->where('is_active', true)
             ->whereNotNull('push_token')
             ->where('push_token', '!=', '')
             ->orderBy('id')
-            ->chunkById(500, function (Collection $tokens) use ($title, $body, $data, $category, &$seenTokens): void {
+            ->chunkById(500, function (Collection $tokens) use ($title, $body, $data, $category, &$seenTokens, &$summary): void {
                 $eligibleTokens = $tokens
                     ->filter(fn (PushToken $token): bool => $this->userAllows($token, $category))
                     ->reject(fn (PushToken $token): bool => isset($seenTokens[$token->push_token]))
@@ -40,10 +77,12 @@ class PushNotificationService
                     $seenTokens[$token->push_token] = true;
                 }
 
-                $eligibleTokens->chunk(100)->each(
-                    fn (Collection $chunk) => $this->sendChunk($chunk, $title, $body, $data)
-                );
+                $eligibleTokens->chunk(100)->each(function (Collection $chunk) use (&$summary, $title, $body, $data): void {
+                    $summary = $this->mergeSummary($summary, $this->sendChunk($chunk, $title, $body, $data));
+                });
             });
+
+        return $summary;
     }
 
     public function sendToUser(
@@ -52,7 +91,7 @@ class PushNotificationService
         ?string $body = null,
         array $data = [],
         ?string $category = null
-    ): void {
+    ): array {
         $userId = $user instanceof User ? $user->getKey() : $user;
         $category ??= $this->categoryFromData($data);
 
@@ -68,16 +107,22 @@ class PushNotificationService
             ->unique('push_token')
             ->values();
 
-        $tokens->chunk(100)->each(
-            fn (Collection $chunk) => $this->sendChunk($chunk, $title, $body, $data)
-        );
+        $summary = $this->emptySummary();
+
+        $tokens->chunk(100)->each(function (Collection $chunk) use (&$summary, $title, $body, $data): void {
+            $summary = $this->mergeSummary($summary, $this->sendChunk($chunk, $title, $body, $data));
+        });
+
+        return $summary;
     }
 
-    private function sendChunk(Collection $tokens, string $title, ?string $body, array $data): void
+    private function sendChunk(Collection $tokens, string $title, ?string $body, array $data): array
     {
         if ($tokens->isEmpty()) {
-            return;
+            return $this->emptySummary();
         }
+
+        $attempted = $tokens->count();
 
         $messages = $tokens->map(fn (PushToken $token): array => [
             'to' => $token->push_token,
@@ -103,16 +148,38 @@ class PushNotificationService
                     'body' => $response->body(),
                 ]);
 
-                return;
+                return ['attempted' => $attempted, 'accepted' => 0];
             }
 
             $this->removeUnregisteredTokens($tokens, $response);
+
+            return [
+                'attempted' => $attempted,
+                'accepted' => collect($response->json('data', []))
+                    ->where('status', 'ok')
+                    ->count(),
+            ];
         } catch (Throwable $exception) {
             // A notification provider outage must never make the API request fail.
             Log::warning('Expo push request failed.', [
                 'message' => $exception->getMessage(),
             ]);
+
+            return ['attempted' => $attempted, 'accepted' => 0];
         }
+    }
+
+    private function emptySummary(): array
+    {
+        return ['attempted' => 0, 'accepted' => 0];
+    }
+
+    private function mergeSummary(array $summary, array $addition): array
+    {
+        return [
+            'attempted' => (int) $summary['attempted'] + (int) $addition['attempted'],
+            'accepted' => (int) $summary['accepted'] + (int) $addition['accepted'],
+        ];
     }
 
     private function removeUnregisteredTokens(Collection $tokens, Response $response): void

@@ -10,7 +10,7 @@
 
 @section('content')
 <div class="notification-wrap">
-    <div class="header-row"><div><div class="eyebrow">Push และกล่องข้อความในแอป</div><h1>ส่งการแจ้งเตือน</h1><div class="muted">ผู้ดูแลจะส่งได้เฉพาะจากหน้านี้ และทุกการส่งมี audit log</div></div><a class="btn" href="{{ route('admin.dashboard') }}">กลับภาพรวม</a></div>
+    <div class="header-row"><div><div class="eyebrow">การแจ้งเตือน</div><h1>ส่งข้อความ</h1><div class="muted">พร้อมส่ง Push ไปยัง {{ number_format($pushReadyDevices) }} อุปกรณ์</div></div><a class="btn" href="{{ route('admin.dashboard') }}">กลับ</a></div>
 
     <section class="card" aria-labelledby="notification-form-title">
         <h2 id="notification-form-title">สร้างข้อความ</h2>
@@ -20,12 +20,12 @@
         <form class="stack" method="POST" action="{{ route('admin.notifications.store') }}" id="notification-form">
             @csrf
             <div class="field"><label for="recipient">ผู้รับ</label><select name="recipient" id="recipient" required><option value="user" @selected(old('recipient', 'user') === 'user')>ผู้ใช้หนึ่งคน</option><option value="all" @selected(old('recipient') === 'all')>ผู้ใช้ ACTIVE ทุกคน</option></select></div>
-            <div class="field" id="recipient-user-field"><label for="user_id">เลือกผู้ใช้</label><select name="user_id" id="user_id"><option value="">-- เลือกผู้รับ --</option>@foreach($users as $user)<option value="{{ $user->id }}" @selected((string) old('user_id') === (string) $user->id)>#{{ $user->id }} · {{ $user->full_name_th }}{{ $user->email ? ' · '.$user->email : '' }}</option>@endforeach</select><div class="muted" style="margin-top:6px;font-size:.85rem">แสดงรายชื่อสูงสุด 1,000 คน</div></div>
+            <div class="field" id="recipient-user-field"><label for="user_id">เลือกผู้ใช้</label><select name="user_id" id="user_id"><option value="">-- เลือกผู้รับ --</option>@foreach($users as $user)<option value="{{ $user->id }}" @selected((string) old('user_id') === (string) $user->id)>#{{ $user->id }} · {{ $user->full_name_th }}{{ $user->email ? ' · '.$user->email : '' }}</option>@endforeach</select></div>
             <div class="field"><label for="title">หัวข้อ</label><input class="input" id="title" name="title" maxlength="120" value="{{ old('title') }}" required></div>
             <div class="field"><label for="body">ข้อความ <span class="muted" style="font-weight:500">(ไม่บังคับ)</span></label><textarea id="body" name="body" rows="6" maxlength="1000">{{ old('body') }}</textarea></div>
             <div class="broadcast-warning" id="broadcast-confirmation" hidden>
-                <strong>กำลังส่งถึงผู้ใช้ ACTIVE ทุกคน</strong>
-                <label class="check-row"><input type="checkbox" name="confirm_broadcast" value="1" @checked(old('confirm_broadcast'))><span>ฉันตรวจหัวข้อและข้อความแล้ว และยืนยันให้ส่งการแจ้งเตือนถึงผู้ใช้ ACTIVE ทุกคน</span></label>
+                <strong>กำลังส่งถึงผู้ใช้ในแอปที่ใช้งานอยู่ทั้งหมด</strong>
+                <label class="check-row"><input type="checkbox" name="confirm_broadcast" value="1" @checked(old('confirm_broadcast'))><span>ยืนยันส่งข้อความและ Push ไปยังอุปกรณ์ที่ลงทะเบียนไว้</span></label>
             </div>
             <div class="form-footer"><button class="btn btn-primary" type="submit" onclick="return confirm('ยืนยันส่งการแจ้งเตือนตามผู้รับที่เลือก?')">ส่งการแจ้งเตือน</button></div>
         </form>

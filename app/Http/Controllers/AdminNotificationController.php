@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\PushToken;
 use App\Models\User;
 use App\Services\AdminAuditService;
 use App\Services\NotificationDeliveryService;
@@ -27,7 +28,16 @@ class AdminNotificationController extends Controller
             ->limit(1000)
             ->get();
 
-        return view('admin.notifications.create', compact('users'));
+        $pushReadyDevices = PushToken::query()
+            ->where('provider', 'expo')
+            ->where('is_active', true)
+            ->whereNotNull('push_token')
+            ->where('push_token', '!=', '')
+            ->whereHas('user', fn ($query) => $query->where('status', 'ACTIVE'))
+            ->distinct('push_token')
+            ->count('push_token');
+
+        return view('admin.notifications.create', compact('users', 'pushReadyDevices'));
     }
 
     public function store(Request $request): RedirectResponse
@@ -69,13 +79,18 @@ class AdminNotificationController extends Controller
 
             $message = 'ส่งการแจ้งเตือนให้ผู้ใช้เรียบร้อยแล้ว';
         } else {
-            $delivered = $this->notifications->deliverToActiveUsers(
+            $delivery = $this->notifications->deliverToActiveUsers(
                 $data['title'],
                 $data['body'] ?? null,
                 'admin_announcement',
                 $payload,
             );
+            $delivered = $delivery['inbox_count'];
             $message = "ส่งการแจ้งเตือนถึงผู้ใช้ที่ใช้งานอยู่ {$delivered} คนแล้ว";
+        }
+
+        if ($data['recipient'] === 'all') {
+            $message = "บันทึกข้อความให้ {$delivery['inbox_count']} บัญชี และ Expo รับคำขอ Push {$delivery['push_accepted']} / {$delivery['push_attempted']} อุปกรณ์";
         }
 
         $this->audit->recordEvent(
@@ -89,6 +104,8 @@ class AdminNotificationController extends Controller
                 'title' => $data['title'],
                 'body' => $data['body'] ?? null,
                 'delivered_count' => $data['recipient'] === 'user' ? 1 : $delivered,
+                'push_attempted' => $data['recipient'] === 'user' ? null : $delivery['push_attempted'],
+                'push_accepted' => $data['recipient'] === 'user' ? null : $delivery['push_accepted'],
             ],
         );
 
