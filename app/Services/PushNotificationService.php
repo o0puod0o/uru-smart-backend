@@ -10,6 +10,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use Throwable;
 
 class PushNotificationService
@@ -128,6 +129,7 @@ class PushNotificationService
         $messages = $tokens->map(fn (PushToken $token): array => [
             'to' => $token->push_token,
             'sound' => 'default',
+            'priority' => 'high',
             'title' => $title,
             'body' => $body,
             'data' => $data,
@@ -168,7 +170,16 @@ class PushNotificationService
                 ]);
             }
 
-            $this->recordExpoTickets($tokens, $tickets);
+            // A ticket persistence failure must not turn a successful request
+            // to Expo into a false "0 accepted" result for the administrator.
+            try {
+                $this->recordExpoTickets($tokens, $tickets);
+            } catch (Throwable $exception) {
+                Log::warning('Expo push ticket persistence failed.', [
+                    'message' => $exception->getMessage(),
+                ]);
+            }
+
             $this->removeUnregisteredTokens($tokens, $tickets);
 
             return [
@@ -204,6 +215,12 @@ class PushNotificationService
      */
     private function recordExpoTickets(Collection $tokens, array $tickets): void
     {
+        if (! Schema::hasTable('expo_push_tickets')) {
+            Log::warning('Expo push ticket persistence is pending database migration.');
+
+            return;
+        }
+
         foreach ($tickets as $index => $ticket) {
             $token = $tokens->get($index);
 
@@ -248,6 +265,12 @@ class PushNotificationService
      */
     public function checkPendingReceipts(int $limit = 1000): array
     {
+        if (! Schema::hasTable('expo_push_tickets')) {
+            Log::warning('Expo push receipt check skipped because the ticket table is not migrated.');
+
+            return ['checked' => 0, 'device_not_registered' => 0, 'pending' => 0];
+        }
+
         $tickets = ExpoPushTicket::query()
             ->where('ticket_status', 'ok')
             ->whereNotNull('ticket_id')
